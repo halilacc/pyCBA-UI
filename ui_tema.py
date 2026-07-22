@@ -150,6 +150,10 @@ h1, h2, h3, [data-testid="stMetricValue"],
 
 /* --- Kenar çubuğu --- */
 [data-testid="stSidebar"] { border-right: 1px solid var(--pc-line); }
+/* Mobilde kenar çubuğu kapanınca Streamlit genişliğini ~1px yapar ama içerik
+   kırpılmayıp ana içeriğin üstüne (harf harf sarmış etiketler) taşıyordu; kapalı
+   durumda içeriği kes. Açık durumda (aria-expanded=true) etkilenmez. */
+[data-testid="stSidebar"][aria-expanded="false"] { overflow: hidden !important; }
 [data-testid="stSidebar"] h2 {
   font-size: 1.0rem; letter-spacing: -0.01em; padding-bottom: 0.35rem; margin-bottom: 0.2rem;
   border-bottom: 1px solid var(--pc-line);
@@ -243,8 +247,12 @@ label, [data-testid="stWidgetLabel"] *, [data-testid="stCaptionContainer"], [dat
 _GIRIS_CSS = """<style>
 @keyframes pcFadeUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
 @keyframes pcGrow  { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@keyframes pcFadeIn { from { opacity: 0; } to { opacity: 1; } }
 [data-testid="stMainBlockContainer"] { animation: pcFadeUp 560ms var(--pc-ease) both; }
-[data-testid="stSidebar"] { animation: pcFadeUp 560ms var(--pc-ease) both; }
+/* Kenar çubuğunda YALNIZ opacity animasyonu: transform kullanan pcFadeUp, "both"
+   ile transform:none'ı kalıcı kılıp Streamlit'in mobil kapatma (translateX)
+   mekanizmasını bozabiliyordu. */
+[data-testid="stSidebar"] { animation: pcFadeIn 560ms var(--pc-ease) both; }
 .pc-hero__line { animation: pcGrow 720ms var(--pc-ease) 140ms both; }
 </style>"""
 
