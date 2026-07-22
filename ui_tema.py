@@ -208,6 +208,15 @@ _GECE_CSS = """<style>
   background-color: var(--pc-bg) !important;
 }
 [data-testid="stHeader"] { background: transparent !important; }
+/* Header ikon butonları (kenar çubuğu aç/kapat oku »/«, menü) gece modunda koyu
+   kaldığı için görünmüyordu; açık renge boya. İkonlar Material Symbols yazı tipi
+   (color) veya SVG (fill) olabildiğinden ikisi de ayarlanır. */
+[data-testid="stExpandSidebarButton"], [data-testid="stExpandSidebarButton"] *,
+[data-testid="stSidebarCollapseButton"], [data-testid="stSidebarCollapseButton"] *,
+[data-testid="stBaseButton-headerNoPadding"], [data-testid="stBaseButton-headerNoPadding"] *,
+[data-testid="stBaseButton-header"], [data-testid="stMainMenuButton"] {
+  color: var(--pc-ink) !important; fill: var(--pc-ink) !important;
+}
 [data-testid="stSidebar"] { background-color: var(--pc-surface2) !important; }
 /* Genel metin */
 [data-testid="stMarkdownContainer"], [data-testid="stMarkdownContainer"] p, [data-testid="stMarkdownContainer"] li,
@@ -248,12 +257,15 @@ _GIRIS_CSS = """<style>
 @keyframes pcFadeUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
 @keyframes pcGrow  { from { transform: scaleX(0); } to { transform: scaleX(1); } }
 @keyframes pcFadeIn { from { opacity: 0; } to { opacity: 1; } }
-[data-testid="stMainBlockContainer"] { animation: pcFadeUp 560ms var(--pc-ease) both; }
-/* Kenar çubuğunda YALNIZ opacity animasyonu: transform kullanan pcFadeUp, "both"
-   ile transform:none'ı kalıcı kılıp Streamlit'in mobil kapatma (translateX)
-   mekanizmasını bozabiliyordu. */
-[data-testid="stSidebar"] { animation: pcFadeIn 560ms var(--pc-ease) both; }
-.pc-hero__line { animation: pcGrow 720ms var(--pc-ease) 140ms both; }
+/* Giriş animasyonları YALNIZ masaüstünde (min-width:641px). Mobilde bu
+   animasyonlar ilk yüklemede kenar çubuğu yerleşimini bozuyordu; tema değişince
+   rerun'da _GIRIS_CSS yeniden enjekte edilmediğinden sorun "kendiliğinden"
+   kayboluyordu — kök neden buydu. Mobilde animasyonsuz, temiz açılır. */
+@media (min-width: 641px) {
+  [data-testid="stMainBlockContainer"] { animation: pcFadeUp 560ms var(--pc-ease) both; }
+  [data-testid="stSidebar"] { animation: pcFadeIn 560ms var(--pc-ease) both; }
+  .pc-hero__line { animation: pcGrow 720ms var(--pc-ease) 140ms both; }
+}
 </style>"""
 
 

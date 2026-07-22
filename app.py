@@ -361,17 +361,24 @@ for i, (ad, birim, xr, yr, renk, dolgu, ters) in enumerate(paneller, start=1):
     if ters:  # moment: sagging-pozitif aşağıda (PyCBA konvansiyonu korunur)
         fig.update_yaxes(autorange="reversed", row=i, col=1)
 fig.update_xaxes(title_text="Kiriş boyunca konum [m]", row=n_panel, col=1)
-fig.update_xaxes(gridcolor=_g_izgara, zerolinecolor=_g_sifir, linecolor=_g_izgara)
-fig.update_yaxes(gridcolor=_g_izgara, zerolinecolor=_g_sifir)
+# fixedrange=True: dokunmatik ekranda grafik zoom/pan/pinch yapmaz — parmak
+# hareketi sayfayı kaydırır, grafiği değil. Hover ipuçları çalışmaya devam eder.
+fig.update_xaxes(gridcolor=_g_izgara, zerolinecolor=_g_sifir, linecolor=_g_izgara, fixedrange=True)
+fig.update_yaxes(gridcolor=_g_izgara, zerolinecolor=_g_sifir, fixedrange=True)
 fig.update_layout(
-    title=dict(text="Kesit Tesirleri Diyagramları", y=0.99, yanchor="top"),
+    # Başlık rengi açıkça verilir; aksi halde Streamlit'in plotly şablonu koyu
+    # bırakıp gece modunda okunmaz kılıyordu.
+    title=dict(text="Kesit Tesirleri Diyagramları", y=0.99, yanchor="top",
+               font=dict(color=_g_yazi)),
     margin=dict(t=70),
     height=240 * n_panel + 90,  # panel başına ~240 px; başlık/eksen için pay
     showlegend=False,
     paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
     font=dict(color=_g_yazi),
 )
-st.plotly_chart(fig, width="stretch")
+# displayModeBar=False: zoom/pan araç çubuğu gizli (fixedrange ile zaten işlevsiz)
+# — hem mobilde başlıkla çakışmasını önler hem arayüzü sadeleştirir.
+st.plotly_chart(fig, width="stretch", config={"displayModeBar": False})
 st.download_button(
     "⬇️ Diyagram verileri (CSV)",
     _diyagram_csv(
