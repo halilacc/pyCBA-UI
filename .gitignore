@@ -1,0 +1,47 @@
+# ---- Sanal ortam ----
+# PyCBA fork edilmez, .venv içinden bağımlılık olarak import edilir (bkz. CLAUDE.md).
+# 7000+ dosya; asla depoya girmez. Kurulum: pip install -r requirements.txt
+.venv/
+venv/
+env/
+ENV/
+
+# ---- Python ----
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+build/
+dist/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+
+# ---- Ortam değişkenleri / sırlar ----
+# Gerçek .env asla izlenmez; yalnızca .env.example şablonu depoda kalır.
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+secrets.toml
+
+# ---- Streamlit ----
+.streamlit/secrets.toml
+
+# ---- IDE / editör ----
+.vscode/
+.idea/
+*.swp
+*~
+
+# ---- İşletim sistemi ----
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ---- Claude Code ----
+# Agent tanımları (.claude/agents/) izlenir; yalnızca kişisel yerel ayarlar yoksayılır.
+.claude/settings.local.json

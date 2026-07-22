@@ -1,0 +1,3 @@
+pycba==1.0.1
+streamlit>=1.59
+plotly>=6.9
