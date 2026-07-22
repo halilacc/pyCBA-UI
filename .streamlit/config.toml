@@ -1,0 +1,12 @@
+# Kohezyonlu tema (sıcak monokrom + indigo aksan). Renk/animasyon CSS'i
+# ui_tema.py'de; burada Streamlit'in yerel tema değişkenleri ayarlanır.
+# Tema değişikliği sunucu yeniden başlatınca etkinleşir.
+[theme]
+base = "light"
+primaryColor = "#4338CA"
+backgroundColor = "#FBFBFA"
+secondaryBackgroundColor = "#F3F2EF"
+textColor = "#1C1B19"
+linkColor = "#4338CA"
+baseRadius = "0.7rem"
+borderColor = "#E7E5E0"

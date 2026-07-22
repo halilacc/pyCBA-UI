@@ -8,12 +8,14 @@ Yalnızca sunum katmanı: model kurulumu ve çözüm `core/` paketindedir.
 import matplotlib.pyplot as plt
 import plotly.graph_objects as go
 import streamlit as st
+from plotly.subplots import make_subplots
 
 from core import (
     AXIAL_KINDS, BeamModel, Load, LOAD_TYPES, SUPPORT_TYPES,
     check_load_position, solve, SolverError,
 )
 from ui_cizim import NORMAL_KUVVET_YESILI, ciz_sema
+from ui_tema import enjekte_tema, hero_baslik, tepki_tablosu
 
 SUPPORT_LABELS = {
     "pin": "Mafsal (pin)",
@@ -48,13 +50,31 @@ KIND_HINTS = {
 
 
 st.set_page_config(page_title="PyCBA Kiriş Analizi", page_icon="🏗️", layout="wide")
-st.title("🏗️ Sürekli Kiriş Analizi — PyCBA")
+# Tema modu: kenar çubuğundaki toggle "tema_gece"yi yazar; burada (rerun'da)
+# okunup CSS enjekte edilir. Toggle enjeksiyondan sonra çizilir ama Streamlit
+# her etkileşimde baştan çalıştığı için değer bir sonraki rerun'da yansır.
+mod = "gece" if st.session_state.get("tema_gece", False) else "aydinlik"
+karanlik = mod == "gece"
+enjekte_tema(mod)
+hero_baslik(
+    "Sürekli Kiriş Analizi",
+    "PyCBA çekirdeğiyle mesnet tepkileri, kesit tesirleri ve sehim — anında, "
+    "etkileşimli diyagramlarla.",
+)
 
 if "loads" not in st.session_state:
     st.session_state.loads = []  # list[Load]
+# Ekleme formu alanlarının anahtarına giren sayaç: bir yük eklenince artırılır ki
+# widget'lar yeniden kurulup (remount) boşalsın. Form içindeki number_input'un
+# frontend değeri submit sonrası kalıcı olduğundan session_state'i silmek alanı
+# temizlemez; anahtarı değiştirmek temizler.
+st.session_state.setdefault("add_nonce", 0)
 
 # ---------------------------------------------------------------- girdi paneli
 with st.sidebar:
+    # Tema toggle: key "tema_gece" — üstte okunup CSS moduna karar verilir.
+    st.toggle("🌙 Gece modu", key="tema_gece")
+
     st.header("1. Geometri")
     n_spans = st.number_input("Açıklık sayısı", min_value=1, max_value=10, value=2)
 
@@ -88,18 +108,19 @@ with st.sidebar:
         )
 
     st.header("3. Yükler")
-    kind = st.selectbox(
-        "Yük tipi", list(LOAD_TYPES), format_func=lambda k: LOAD_TYPES[k][1],
-    )
-    # Anahtar açıklık sayısına bağlı: kullanıcı açıklık sayısını küçültünce
-    # eski (artık max_value dışında kalabilecek) değer taşınmaz — aksi halde
-    # Streamlit "value > max_value" istisnası fırlatır. (a/c widget'larıyla
+    # Önce hangi açıklığa yük konacağı, sonra yük tipi seçilir (doğal akış:
+    # "nereye" → "ne"). Anahtar açıklık sayısına bağlı: kullanıcı açıklık sayısını
+    # küçültünce eski (artık max_value dışında kalabilecek) değer taşınmaz — aksi
+    # halde Streamlit "value > max_value" istisnası fırlatır. (a/c widget'larıyla
     # tutarlı "key'i bağla" deseni.)
     load_span = st.number_input(
         "Açıklık no", min_value=1, max_value=n_spans, value=1,
         key=f"load_span_{n_spans}",
     )
     L_sel = float(spans[load_span - 1])
+    kind = st.selectbox(
+        "Yük tipi", list(LOAD_TYPES), format_func=lambda k: LOAD_TYPES[k][1],
+    )
     st.caption(f"{KIND_HINTS[kind]}  (Seçili açıklık: L = {L_sel:g} m)")
     # Parametreler bir form içinde toplanır: elle YAZILAN değerler (özellikle konum
     # a) ancak "Yük ekle"ye basınca topluca gönderilir. Form dışında number_input'a
@@ -108,7 +129,7 @@ with st.sidebar:
     # çalışıyordu. Yük tipi ve açıklık no form DIŞINDA kaldı ki değişince a'nın
     # max_value=L sınırı ve parametre alanları anında yenilensin.
     with st.form("yuk_ekle_form"):
-        values = []
+        values, param_keys = [], []
         for p in LOAD_TYPES[kind][2]:
             label, unit = PARAM_LABELS[p]
             if p in ("a", "c"):
@@ -116,12 +137,23 @@ with st.sidebar:
                 # L'ye bağlı: açıklık/uzunluk değişince eski (artık geçersiz olabilecek)
                 # değer taşınmaz.
                 kw = dict(min_value=0.0, max_value=L_sel, step=0.25)
-                key = f"lv_{kind}_{p}_{load_span}_{L_sel:g}"
+                key = f"lv_{kind}_{p}_{load_span}_{L_sel:g}_{st.session_state.add_nonce}"
             else:
                 kw = dict(step=1.0)
-                key = f"lv_{kind}_{p}"
-            values.append(st.number_input(f"{label} [{unit}]", value=0.0, key=key, **kw))
-        submitted = st.form_submit_button("➕ Yük ekle", width="stretch")
+                key = f"lv_{kind}_{p}_{st.session_state.add_nonce}"
+            param_keys.append(key)
+            # value=None: alan "0.00" yerine BOŞ (placeholder "0") başlar. Aksi halde
+            # kullanıcı "0.00" önekini seçip silmeden "1000" yazınca alana "0.001000"
+            # (=0.001 gibi saçma bir değer) giriyordu. Boş bırakılan alan aşağıda 0.0
+            # sayılır; tüm şiddetler 0 ise zaten uyarı verilir.
+            values.append(
+                st.number_input(
+                    f"{label} [{unit}]", value=None, placeholder="0", key=key, **kw
+                )
+            )
+        submitted = st.form_submit_button("➕ Yük ekle", width="stretch", type="primary")
+    # Boş bırakılan (None) alanları 0.0 kabul et — doğrulama/çözüm float bekler.
+    values = [0.0 if v is None else v for v in values]
     if submitted:
         # Şiddet parametreleri (konum a/c dışındakiler) tümü 0 ise yük eklemek
         # anlamsızdır; sessizce 0'lık yük eklemek yerine uyar.
@@ -133,6 +165,12 @@ with st.sidebar:
             st.error(pos_err)
         else:
             st.session_state.loads.append(Load(span=load_span, kind=kind, values=values))
+            # Sayaç artınca alan anahtarları değişir → widget'lar boş (placeholder
+            # "0") yeniden kurulur; eski anahtarlar session_state'te birikmesin diye
+            # temizlenir. Böylece sonraki yük yine temiz başlar (üstüne yazma tuzağı yok).
+            for k in param_keys:
+                st.session_state.pop(k, None)
+            st.session_state.add_nonce += 1
             st.rerun()
 
 # --------------------------------------------------------------- yük listesi
@@ -283,24 +321,56 @@ _kart(cols[2], "sehim", "mm", result["x"], result["D"], olcek=1000.0)
 if has_axial:
     _kart(cols[3], "normal", "kN", result["xN"], result["N"])
 
-fig = result["analysis"].plot_results(backend="plotly")
-# Streamlit teması boş (None) başlığı "undefined" olarak çizer; açık başlık ver.
-# PyCBA figürü başlıksız düzen için t=20 bırakır; başlık için üst boşluğu aç.
+# Kesit tesiri diyagramları TEK figürde, sıra: Normal · Kesme · Moment · Sehim
+# (Normal yalnız eksenel yük varsa; ayrı grafik çıkmaz). PyCBA'nın sabit 3-panelli
+# plotly figürü yerine result dizilerinden kurulur ki panel sayısı/sırası dinamik
+# olsun ve N aynı x eksenini paylaşsın. Renk/dolgu/moment-ekseni-ters konvansiyonu
+# PyCBA ile aynı tutulur.
+_KIRMIZI, _KIRMIZI_DOLGU = "#d62728", "rgba(214,39,40,0.12)"
+# Grafik moda göre renklenir; zemin şeffaf bırakılıp kart yüzeyi görünür.
+_g_yazi = "#E9E7E2" if karanlik else "#1C1B19"
+_g_izgara = "rgba(255,255,255,0.10)" if karanlik else "rgba(28,27,25,0.08)"
+_g_sifir = "rgba(233,231,226,0.55)" if karanlik else "rgba(28,27,25,0.45)"
+paneller = []
+if has_axial:
+    # Şema ile ortak yeşil; ince çizgi + düşük opaklık dolgu (dataviz).
+    paneller.append(
+        ("Normal", "kN", result["xN"], result["N"],
+         NORMAL_KUVVET_YESILI, "rgba(44,160,44,0.15)", False)
+    )
+paneller += [
+    # (ad, birim, x, y, çizgi_rengi, dolgu_rgba|None, y_ekseni_ters)
+    ("Kesme", "kN", result["x"], result["V"], _KIRMIZI, _KIRMIZI_DOLGU, False),
+    ("Moment", "kNm", result["x"], result["M"], _KIRMIZI, _KIRMIZI_DOLGU, True),
+    ("Sehim", "mm", result["x"], result["D"] * 1000.0, _KIRMIZI, None, False),
+]
+n_panel = len(paneller)
+fig = make_subplots(rows=n_panel, cols=1, shared_xaxes=True, vertical_spacing=0.05)
+for i, (ad, birim, xr, yr, renk, dolgu, ters) in enumerate(paneller, start=1):
+    fig.add_trace(
+        go.Scatter(
+            x=xr, y=yr, mode="lines", name=ad,
+            line=dict(color=renk, width=1.6),
+            fill="tozeroy" if dolgu else None, fillcolor=dolgu,
+            hovertemplate=f"{ad}: %{{y:.4g}} {birim}<extra></extra>",
+        ),
+        row=i, col=1,
+    )
+    fig.add_hline(y=0, line=dict(color=_g_sifir, width=1), row=i, col=1)
+    fig.update_yaxes(title_text=f"{ad} [{birim}]", row=i, col=1)
+    if ters:  # moment: sagging-pozitif aşağıda (PyCBA konvansiyonu korunur)
+        fig.update_yaxes(autorange="reversed", row=i, col=1)
+fig.update_xaxes(title_text="Kiriş boyunca konum [m]", row=n_panel, col=1)
+fig.update_xaxes(gridcolor=_g_izgara, zerolinecolor=_g_sifir, linecolor=_g_izgara)
+fig.update_yaxes(gridcolor=_g_izgara, zerolinecolor=_g_sifir)
 fig.update_layout(
-    title=dict(text="Moment · Kesme · Sehim Diyagramları", y=0.99, yanchor="top"),
+    title=dict(text="Kesit Tesirleri Diyagramları", y=0.99, yanchor="top"),
     margin=dict(t=70),
-    height=750,  # 3 panel basık kalmasın; eksen başlıkları çakışmasın
+    height=240 * n_panel + 90,  # panel başına ~240 px; başlık/eksen için pay
+    showlegend=False,
+    paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+    font=dict(color=_g_yazi),
 )
-# PyCBA eksen/iz adları İngilizce üretir; sunum katmanında Türkçeleştir.
-# Panel sırası plot_results ile sabit: 1=moment, 2=kesme, 3=sehim.
-_panel_tr = [("Moment", "kNm"), ("Kesme", "kN"), ("Sehim", "mm")]
-for row, (ad, birim) in enumerate(_panel_tr, start=1):
-    fig.update_yaxes(title_text=f"{ad} [{birim}]", row=row, col=1)
-    if row - 1 < len(fig.data):
-        tr = fig.data[row - 1]
-        tr.name = ad
-        tr.hovertemplate = f"{ad}: %{{y:.4g}} {birim}<extra></extra>"
-fig.update_xaxes(title_text="Kiriş boyunca konum [m]", row=3, col=1)
 st.plotly_chart(fig, width="stretch")
 st.download_button(
     "⬇️ Diyagram verileri (CSV)",
@@ -311,32 +381,8 @@ st.download_button(
     file_name="diyagram_moment_kesme_sehim.csv",
     mime="text/csv",
 )
-
-# Normal kuvvet diyagramı: PyCBA plot_results eksenel çözmez; core/axial.py
-# sonucu (xN çift-nokta dizisi, süreksizlikler keskin) ayrı Plotly grafiğiyle
-# çizilir. Yalnızca eksenel yük tanımlıysa gösterilir.
 if has_axial:
-    # Şema ile ortak yeşil (ui_cizim.NORMAL_KUVVET_YESILI); doygun blok yerine
-    # ince çizgi + düşük opaklık dolgu — status (iyi/kötü) çağrışımından uzak,
-    # süreksizlikler daha okunur.
-    fig_n = go.Figure(
-        go.Scatter(
-            x=result["xN"], y=result["N"],
-            mode="lines", fill="tozeroy", name="Normal kuvvet",
-            line=dict(color=NORMAL_KUVVET_YESILI, width=1.5),
-            fillcolor="rgba(44,160,44,0.15)",
-            hovertemplate="Normal: %{y:.4g} kN<extra></extra>",
-        )
-    )
-    fig_n.update_layout(
-        title=dict(text="Normal Kuvvet Diyagramı (çekme +)", y=0.95, yanchor="top"),
-        height=320,
-        margin=dict(t=60, b=40),
-        xaxis_title="Kiriş boyunca konum [m]",
-        yaxis_title="Normal kuvvet [kN]",
-        showlegend=False,
-    )
-    st.plotly_chart(fig_n, width="stretch")
+    # N kendi apsis dizisini (xN) kullandığı için ayrı CSV.
     st.download_button(
         "⬇️ Normal kuvvet verileri (CSV)",
         _diyagram_csv(["x [m]", "Normal [kN]"], result["xN"], result["N"]),
@@ -361,4 +407,6 @@ for r in result["reactions"]:
     if has_fixed:
         row["Moment tepkisi [kNm]"] = "—" if r["M"] is None else f"{r['M']:.3f}"
     rows.append(row)
-st.dataframe(rows, width="stretch", hide_index=True)
+# st.dataframe canvas tabanlı olduğu için gece modunda renklenmez; temalanabilir
+# HTML tablo kullanılır (bkz. ui_tema.tepki_tablosu).
+tepki_tablosu(rows)

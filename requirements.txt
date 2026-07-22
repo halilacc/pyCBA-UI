@@ -1,3 +1,5 @@
 pycba==1.0.1
 streamlit>=1.59
 plotly>=6.9
+matplotlib>=3.8
+numpy>=1.26

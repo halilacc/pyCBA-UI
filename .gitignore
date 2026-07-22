@@ -45,3 +45,5 @@ desktop.ini
 # ---- Claude Code ----
 # Agent tanımları (.claude/agents/) izlenir; yalnızca kişisel yerel ayarlar yoksayılır.
 .claude/settings.local.json
+# Yerel/üçüncü-parti skill konfigleri uygulamayla ilgisiz; depoya (ve deploy'a) girmez.
+.claude/skills/

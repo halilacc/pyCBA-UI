@@ -8,6 +8,7 @@ Streamlit gerektirmediği için tarayıcısız da test edilebilir.
 """
 
 import numpy as np
+from matplotlib.lines import Line2D
 from pycba.render import BeamPlotter, Support
 
 from core import AXIAL_KINDS, build_beam
@@ -60,6 +61,37 @@ def ciz_sema(ax, model, reactions=None):
         bp.render_reactions_mpl(ax, vert, mom)
         ciz_yatay_tepkiler(ax, model, reactions)
     ciz_eksenel_yukler(ax, model)
+    _ciz_legend(ax, model, reactions)
+
+
+def _ciz_legend(ax, model, reactions):
+    """Şemadaki renk kodlarını açıklayan legend ekle (yalnız çizilen kategoriler).
+
+    Renk dili: kırmızı = düşey yük, mavi = eksenel yük, yeşil = mesnet tepkisi
+    (düşey/moment/yatay). PyCBA `render_mpl` yükleri tab:red, `render_reactions_mpl`
+    tepkileri tab:green çizer; eksenel yük mavi + yatay tepki yeşil bu modülde
+    eklenir. Proxy handle'lar boş veriyle kurulur (eksen sınırlarını bozmaz).
+    """
+    girisler = []
+    if any(ld.kind not in AXIAL_KINDS for ld in model.loads):
+        girisler.append(("tab:red", "Düşey yük"))
+    if any(ld.kind in AXIAL_KINDS for ld in model.loads):
+        girisler.append((EKSENEL_YUK_MAVISI, "Eksenel yük"))
+    tepki_var = bool(reactions) and any(
+        (r.get("V") and abs(r["V"]) > 1e-6)
+        or (r.get("M") and abs(r["M"]) > 1e-6)
+        or (r.get("H") and abs(r["H"]) > 1e-6)
+        for r in reactions
+    )
+    if tepki_var:
+        girisler.append((NORMAL_KUVVET_YESILI, "Mesnet tepkisi"))
+    if not girisler:
+        return
+    handles = [
+        Line2D([], [], color=c, lw=2.2, marker=">", markersize=7, label=ad)
+        for c, ad in girisler
+    ]
+    ax.legend(handles=handles, loc="upper right", fontsize=8, framealpha=0.9)
 
 
 def ciz_eksenel_yukler(ax, model):
