@@ -208,14 +208,13 @@ _GECE_CSS = """<style>
   background-color: var(--pc-bg) !important;
 }
 [data-testid="stHeader"] { background: transparent !important; }
-/* Header ikon butonları (kenar çubuğu aç/kapat oku »/«, menü) gece modunda koyu
-   kaldığı için görünmüyordu; açık renge boya. İkonlar Material Symbols yazı tipi
-   (color) veya SVG (fill) olabildiğinden ikisi de ayarlanır. */
-[data-testid="stExpandSidebarButton"], [data-testid="stExpandSidebarButton"] *,
-[data-testid="stSidebarCollapseButton"], [data-testid="stSidebarCollapseButton"] *,
-[data-testid="stBaseButton-headerNoPadding"], [data-testid="stBaseButton-headerNoPadding"] *,
-[data-testid="stBaseButton-header"], [data-testid="stMainMenuButton"] {
-  color: var(--pc-ink) !important; fill: var(--pc-ink) !important;
+/* Kenar çubuğu aç/kapat oku (»/«) gece modunda koyu kalıp görünmüyordu. İkon bir
+   Material Symbols glifi; color/fill override'ı bazı mobil tarayıcılarda tutmadığı
+   için ikonun PİKSELLERİNİ ters çeviriyoruz (koyu ok → açık ok) — ikonun nasıl
+   boyandığından bağımsız, kurşun geçirmez. Buton zemini şeffaf; yalnız ikon döner. */
+[data-testid="stExpandSidebarButton"], [data-testid="stSidebarCollapseButton"],
+[data-testid="stMainMenuButton"] {
+  filter: invert(1) brightness(1.5) !important;
 }
 [data-testid="stSidebar"] { background-color: var(--pc-surface2) !important; }
 /* Genel metin */
