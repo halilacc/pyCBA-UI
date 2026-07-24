@@ -244,8 +244,30 @@ label, [data-testid="stWidgetLabel"] *, [data-testid="stCaptionContainer"], [dat
 [data-testid="stSelectbox"] div:has(> input), [data-testid="stSelectbox"] input {
   color: var(--pc-ink) !important;
 }
+/* Placeholder AYRI bir sözde-öğedir; kural yazılmazsa Streamlit'in AÇIK tema
+   rengi kalır ve gece modunda kutunun içindeki ipucu metni ("0") okunmaz olur. */
+[data-testid="stNumberInputField"]::placeholder,
+[data-baseweb="textarea"] textarea::placeholder,
+[data-testid="stSelectbox"] input::placeholder,
+[data-testid="stMultiSelect"] input::placeholder {
+  color: var(--pc-muted) !important; opacity: 1;
+}
 [data-testid="stNumberInputStepUp"], [data-testid="stNumberInputStepDown"] {
   background-color: var(--pc-surface) !important; color: var(--pc-ink) !important;
+}
+/* Adım (−/+) ve temizle (⊗) ikonları. Streamlit ikon rengini SATIR İÇİ verir:
+   etkinken "inherit", DEVRE DIŞIYKEN açık temanın fadedText40'ı (NumberInput
+   bundle: color: X ? `inherit` : o.colors.fadedText40). Bu yüzden alan boşken
+   (adım düğmesi devre dışı) ikonlar gece modunda kayboluyordu. İkon öğesinin
+   kendisi hedeflenip !important ile bastırılır; devre dışı olan sönük ama
+   görünür kalsın diye muted, etkin olan ink. */
+[data-testid="stNumberInputStepUp"] *, [data-testid="stNumberInputStepDown"] *,
+[data-testid="stNumberInputClearButton"], [data-testid="stNumberInputClearButton"] * {
+  color: var(--pc-muted) !important; fill: currentColor !important;
+}
+[data-testid="stNumberInputStepUp"]:not(:disabled) *,
+[data-testid="stNumberInputStepDown"]:not(:disabled) * {
+  color: var(--pc-ink) !important;
 }
 /* İkincil butonlar / indirme / form gönder (secondary) */
 .stButton > button, .stDownloadButton > button, [data-testid="stFormSubmitButton"] > button[kind="secondary"] {
