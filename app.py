@@ -71,6 +71,7 @@ if "loads" not in st.session_state:
 st.session_state.setdefault("add_nonce", 0)
 # Açıklık içi mafsallar: (açıklık no, sol uçtan a [m]) çiftleri.
 st.session_state.setdefault("span_hinges", [])
+st.session_state.setdefault("mh_nonce", 0)
 
 # ---------------------------------------------------------------- girdi paneli
 with st.sidebar:
@@ -129,16 +130,25 @@ with st.sidebar:
             "Mafsalı mesnet hizasında değil, açıklığın ortasında bir noktada "
             "istiyorsan buradan ekle. Açıklık o noktadan otomatik bölünür."
         )
+        # Açıklık no form DIŞINDA (yük formuyla aynı desen ve aynı nedenle):
+        # konum widget'ının key'i açıklık no'ya bağlı olduğundan, açıklık no form
+        # İÇİNDE olsaydı gönderim anında key değişir, konum widget'ı yeniden kurulur
+        # ve kullanıcının yazdığı değer sessizce 0'a düşerdi. Dışarıda olunca
+        # açıklık değişimi anında rerun tetikler; hem a'nın max_value sınırı hem
+        # de key, kullanıcı konumu yazmadan ÖNCE güncellenmiş olur.
+        mh_span = int(st.number_input(
+            "Mafsalın olduğu açıklık no", min_value=1, max_value=n_spans,
+            value=1, step=1, key=f"mh_span_{n_spans}",
+        ))
+        L_mh = float(spans[mh_span - 1])
         with st.form("mafsal_ekle_form"):
-            mc1, mc2 = st.columns(2)
-            mh_span = int(mc1.number_input(
-                "Açıklık no", min_value=1, max_value=n_spans, value=1, step=1,
-                key=f"mh_span_{n_spans}",
-            ))
-            L_mh = float(spans[mh_span - 1])
-            mh_a = mc2.number_input(
-                "Konum a [m]", min_value=0.0, max_value=L_mh, value=None,
-                step=0.25, placeholder="0", key=f"mh_a_{mh_span}_{L_mh:g}",
+            # Sayaç yük formundaki `add_nonce` ile aynı işi görür: mafsal eklenince
+            # anahtar değişir, alan boş (placeholder "0") yeniden kurulur.
+            mh_key = f"mh_a_{mh_span}_{L_mh:g}_{st.session_state.mh_nonce}"
+            mh_a = st.number_input(
+                f"Konum a [m] — sol uçtan (0 < a < {L_mh:g})",
+                min_value=0.0, max_value=L_mh, value=None,
+                step=0.25, placeholder="0", key=mh_key,
             )
             mh_ekle = st.form_submit_button("➕ Mafsal ekle", width="stretch")
         if mh_ekle:
@@ -152,6 +162,8 @@ with st.sidebar:
                 st.error("Bu mafsal zaten tanımlı.")
             else:
                 st.session_state.span_hinges.append((mh_span, a_val))
+                st.session_state.pop(mh_key, None)
+                st.session_state.mh_nonce += 1
                 st.rerun()
         # Açıklık sayısı/uzunluğu küçültülünce geçersiz kalan mafsalları at —
         # yoksa model sürekli doğrulama hatası verip arayüzü kilitler.

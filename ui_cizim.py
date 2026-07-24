@@ -49,11 +49,18 @@ def ciz_sema(ax, model, reactions=None):
     bp = BeamPlotter(build_beam(model), loads=None)  # loads=None -> beam.LM
     node_x = np.concatenate([[0.0], np.cumsum(model.spans)])
     n_node = len(node_x)
+    # `Support.node` PyCBA'da YALNIZCA mesnet harfini üretmek için kullanılır
+    # (render.py: chr(ord("A") + s.node)); glif konumu x'ten gelir, tepki okları
+    # ise ayrı bir sözlükle çizilir. Düğüm indeksini olduğu gibi verirsek çizilmeyen
+    # düğümler (free — özellikle açıklık içi mafsalın doğurduğu ara düğüm) harf
+    # atlatır: kullanıcı 3 mesnet görürken etiketler A, B, D olur. Bu yüzden harfler
+    # ÇİZİLEN mesnetler üzerinde sıfırdan sırayla numaralanır.
     bp.supports = [
-        Support(x=float(node_x[i]), kind=sup, node=i,
+        Support(x=float(node_x[i]), kind=sup, node=sira,
                 at_left_end=(i == 0), at_right_end=(i == n_node - 1))
-        for i, sup in enumerate(model.supports)
-        if sup != "free"
+        for sira, (i, sup) in enumerate(
+            (i, s) for i, s in enumerate(model.supports) if s != "free"
+        )
     ]
     bp.render_mpl(ax=ax, dimensions=True, load_values=True)
     if reactions:
@@ -68,28 +75,11 @@ def ciz_sema(ax, model, reactions=None):
                if r["M"] is not None and abs(r["M"]) > 1e-6}
         bp.render_reactions_mpl(ax, vert, mom)
         ciz_yatay_tepkiler(ax, model, reactions)
-    ciz_mafsallar(ax, model)
+    # Mafsal dairesi AYRICA ÇİZİLMEZ: PyCBA'nın çizicisi iç mafsalları eletype'tan
+    # kendisi çıkarıp (render.py `_infer_hinges`) beyaz daire olarak çiziyor.
+    # Burada ikinci bir daire çizmek aynı glifi üst üste bindiriyordu.
     ciz_eksenel_yukler(ax, model)
     _ciz_legend(ax, model, reactions)
-
-
-def ciz_mafsallar(ax, model):
-    """İç mafsalları kiriş ekseni üzerinde içi boş daire olarak çiz (Gerber).
-
-    Standart statik gösterimi: mafsal, birleşen iki elemanın moment aktarmadığı
-    noktada içi boş küçük bir daire. PyCBA'nın çizicisi mafsalı bilmediği için
-    (eletype yalnız hesapta kullanılır) burada eklenir. Daire yarıçapı eksen
-    ölçeğinden bağımsız olsun diye nokta (markersize) olarak çizilir.
-    """
-    if not getattr(model, "hinges", None):
-        return
-    node_x = np.concatenate([[0.0], np.cumsum(model.spans)])
-    for h in model.hinges:
-        ax.plot(
-            float(node_x[h - 1]), 0.0, marker="o", markersize=8,
-            markerfacecolor="white", markeredgecolor="black",
-            markeredgewidth=1.4, zorder=6, clip_on=False,
-        )
 
 
 def _ciz_legend(ax, model, reactions):
