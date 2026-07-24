@@ -106,6 +106,63 @@ class Load:
         return [self.span, code] + vals
 
 
+def _split_load(ld: "Load", parcalar: List[tuple]) -> List["Load"]:
+    """Bir yükü, açıklığın bölündüğü alt açıklıklara dağıt.
+
+    parcalar : [(yeni_açıklık_no, s, e), ...] — alt açıklığın ORİJİNAL açıklık
+               koordinatındaki [s, e] aralığı, soldan sağa sıralı.
+    Dönüş: alt açıklıklara ait yeni Load nesneleri (etki eden olmayan alt
+    açıklık için satır üretilmez).
+    """
+    if len(parcalar) == 1:  # bölünme yok
+        return [Load(parcalar[0][0], ld.kind, list(ld.values))]
+
+    kind = ld.kind
+    if kind in ("udl", "axial_udl"):
+        # Tüm açıklığa yayılı: her alt açıklıkta aynı şiddetle tüm açıklık.
+        return [Load(ns, kind, list(ld.values)) for ns, _, _ in parcalar]
+
+    if kind in ("point", "moment", "axial_point"):
+        P, a = ld.values
+        for ns, s, e in parcalar:
+            # Kesim noktasına tam denk gelen yük SAĞDAKİ alt açıklığın sol ucuna
+            # verilir (a=0); son parçada sağ uç da dahildir.
+            if s <= a < e or (ns == parcalar[-1][0] and a <= e + 1e-9):
+                return [Load(ns, kind, [P, min(max(a - s, 0.0), e - s)])]
+        ns, s, e = parcalar[-1]
+        return [Load(ns, kind, [P, e - s])]
+
+    if kind == "partial_udl":
+        w, a, c = ld.values
+        out = []
+        for ns, s, e in parcalar:
+            ov_s, ov_e = max(a, s), min(a + c, e)
+            if ov_e - ov_s > 1e-9:
+                out.append(Load(ns, kind, [w, ov_s - s, ov_e - ov_s]))
+        return out
+
+    if kind == "trapezoid":
+        w1, w2, a, c = ld.values
+        if a == 0 and c == 0:  # tam açıklık kısayolu — gerçek aralığa aç
+            a, c = 0.0, parcalar[-1][2]
+        out = []
+        for ns, s, e in parcalar:
+            ov_s, ov_e = max(a, s), min(a + c, e)
+            if ov_e - ov_s <= 1e-9:
+                continue
+            # Şiddet a..a+c arasında lineer; kesim noktalarındaki değer
+            # interpolasyonla bulunur, böylece toplam yük korunur.
+            ws = w1 + (w2 - w1) * (ov_s - a) / c
+            we = w1 + (w2 - w1) * (ov_e - a) / c
+            if abs(ov_s - s) < 1e-9 and abs(ov_e - e) < 1e-9:
+                out.append(Load(ns, kind, [ws, we, 0.0, 0.0]))  # alt açıklığın tamamı
+            else:
+                out.append(Load(ns, kind, [ws, we, ov_s - s, ov_e - ov_s]))
+        return out
+
+    raise ValueError(f"'{kind}' yükü açıklık içi mafsalla bölünemiyor.")
+
+
 @dataclass
 class BeamModel:
     """Sürekli kiriş modeli.
@@ -114,8 +171,12 @@ class BeamModel:
     EI       : her açıklığın eğilme rijitliği [kNm²], N eleman
     supports : her düğümün mesnet tipi (SUPPORT_TYPES), N+1 eleman
     loads    : yük listesi
-    hinges   : iç mafsallı düğüm no'ları (1-tabanlı, yalnız ara düğümler) —
-               Gerber kirişi; boş liste = tam sürekli kiriş
+    hinges   : DÜĞÜMDE (mesnet hizasında) mafsallı düğüm no'ları (1-tabanlı,
+               yalnız ara düğümler) — Gerber; boş liste = tam sürekli kiriş
+    span_hinges : AÇIKLIK İÇİNDE mafsallar: (açıklık no, sol uçtan a [m]) çiftleri.
+               `expand()` bunları açıklığı bölerek mesnetsiz (free) düğüme çevirir;
+               kullanıcı açıklıklarını ve yük numaralandırmasını elle bölmek zorunda
+               kalmaz.
     """
 
     spans: List[float]
@@ -123,6 +184,7 @@ class BeamModel:
     supports: List[str]
     loads: List[Load] = field(default_factory=list)
     hinges: List[int] = field(default_factory=list)
+    span_hinges: List[tuple] = field(default_factory=list)
 
     @property
     def n_spans(self) -> int:
@@ -165,6 +227,24 @@ class BeamModel:
             elif h in gorulen:
                 errors.append(f"Düğüm {h} birden fazla kez mafsal olarak verildi.")
             gorulen.add(h)
+        # Açıklık içi mafsal: konum açıklığın İÇİNDE olmalı (uçta olsaydı bu
+        # zaten düğüm mafsalıdır — `hinges` ile verilir).
+        gorulen_ic = set()
+        for sp, a in self.span_hinges:
+            if not (1 <= sp <= self.n_spans):
+                errors.append(f"Açıklık içi mafsal: açıklık no {sp} geçersiz "
+                              f"(1..{self.n_spans}).")
+                continue
+            L = self.spans[sp - 1]
+            if not (1e-9 < a < L - 1e-9):
+                errors.append(
+                    f"Açıklık {sp} içindeki mafsal konumu a={a:g} m geçersiz: "
+                    f"0 ile {L:g} m arasında (uçlar hariç) olmalı. "
+                    "Mesnet hizasında mafsal için düğüm mafsalını kullanın."
+                )
+            elif (sp, round(a, 9)) in gorulen_ic:
+                errors.append(f"Açıklık {sp}, a={a:g} m'de birden fazla mafsal verildi.")
+            gorulen_ic.add((sp, round(a, 9)))
         for i, ld in enumerate(self.loads, start=1):
             if ld.kind not in LOAD_TYPES:
                 errors.append(f"Yük {i}: bilinmeyen tip {ld.kind!r}")
@@ -185,6 +265,62 @@ class BeamModel:
                 if pos_err:
                     errors.append(f"Yük {i}: {pos_err}")
         return errors
+
+    def expand(self):
+        """Açıklık içi mafsalları düğüm mafsalına çevirerek genişletilmiş model üret.
+
+        PyCBA'da (ve bu modelde) mafsal yalnız eleman ucuna konabilir. Kullanıcı
+        mafsalı açıklığın ortasına koymak istediğinde açıklık o noktadan ikiye
+        bölünür ve araya MESNETSİZ (`free`) bir düğüm girer — statikteki standart
+        Gerber modellemesinin aynısı. Bölme burada otomatik yapılır ki kullanıcı
+        açıklık uzunluklarını ve yük numaralandırmasını elle bölmek zorunda kalmasın.
+
+        Dönüş: (genisletilmis_model, node_map)
+            node_map[i] = genişletilmiş modelin (i+1). düğümünün ORİJİNAL düğüm
+            no'su; bölme sonucu doğan yeni düğümler için None. Sunum katmanı
+            tepkileri kullanıcının numaralandırmasına bununla geri çevirir.
+
+        Açıklık içi mafsal yoksa modelin kendisi ve birebir eşleme döner (kopya
+        maliyeti yok, mevcut davranış değişmez).
+        """
+        if not self.span_hinges:
+            return self, list(range(1, self.n_nodes + 1))
+
+        yeni_spans, yeni_EI = [], []
+        yeni_supports = [self.supports[0]]
+        node_map = [1]
+        yeni_hinges, yeni_loads = [], []
+        parca_haritasi = {}  # orijinal açıklık no -> [(yeni no, s, e), ...]
+
+        for i in range(1, self.n_spans + 1):
+            L = float(self.spans[i - 1])
+            kesimler = sorted(a for sp, a in self.span_hinges if sp == i)
+            sinirlar = [0.0] + kesimler + [L]
+            parcalar = []
+            for j in range(len(sinirlar) - 1):
+                yeni_spans.append(sinirlar[j + 1] - sinirlar[j])
+                yeni_EI.append(self.EI[i - 1])
+                parcalar.append((len(yeni_spans), sinirlar[j], sinirlar[j + 1]))
+                if j < len(sinirlar) - 2:
+                    # Kesim noktasındaki yeni düğüm: mesnetsiz + mafsallı.
+                    yeni_supports.append("free")
+                    node_map.append(None)
+                    yeni_hinges.append(len(yeni_supports))
+                else:
+                    yeni_supports.append(self.supports[i])
+                    node_map.append(i + 1)
+            parca_haritasi[i] = parcalar
+
+        # Kullanıcının düğüm mafsalları yeni numaralandırmaya taşınır.
+        yeni_hinges += [node_map.index(h) + 1 for h in self.hinges]
+        for ld in self.loads:
+            yeni_loads += _split_load(ld, parca_haritasi[ld.span])
+
+        genis = BeamModel(
+            spans=yeni_spans, EI=yeni_EI, supports=yeni_supports,
+            loads=yeni_loads, hinges=sorted(yeni_hinges),
+        )
+        return genis, node_map
 
     def eletypes(self) -> List[int]:
         """Mafsal listesini PyCBA `eletype` koduna çevir (açıklık başına 1 kod).
@@ -213,10 +349,14 @@ class BeamModel:
         > 0 hiperstatik, = 0 izostatik, < 0 mekanizma (kararsız).
         PyCBA yatay DOF tutmadığı için bu sayım yalnız eğilme sistemini kapsar;
         eksenel sistem `core/axial.py`'de ayrı denetlenir.
+
+        Açıklık içi mafsallar da sayılır: `expand()` onları mesnetsiz düğüme
+        çevirdiği için tepki sayısını değiştirmez, yalnız h'yi artırır — yani
+        genişletilmiş model için de aynı sonucu verir.
         """
         r = sum({"pin": 1, "roller": 1, "fixed": 2, "free": 0}.get(s, 0)
                 for s in self.supports)
-        return r - len(self.hinges) - 2
+        return r - len(self.hinges) - len(self.span_hinges) - 2
 
     def to_pycba(self) -> dict:
         """`BeamAnalysis(**model.to_pycba())` ile doğrudan kullanılabilir sözlük."""

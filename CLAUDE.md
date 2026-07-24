@@ -58,6 +58,12 @@ değildir; arayüz ileride Gradio/Flask ile değiştirilebilmelidir. UI mantığ
   her zaman SAĞDAKİ elemanın sol ucuna verilir (açıklık i ↔ düğüm i), böylece her
   açıklık ya FF(1) ya PF(3) olur. `static_degree()` = r − h − 2 ile mekanizma
   ön-kontrolü yapılır (solver bunu kullanır).
+  `span_hinges` = açıklık İÇİNDE mafsal (açıklık no, sol uçtan a) → `expand()`
+  açıklığı böler, araya `free` düğüm koyar, yükleri alt açıklıklara dağıtır
+  (`_split_load`; kısmi UDL/trapez kesimi aşarsa bölünür, trapezde şiddet
+  interpolasyonla bulunur) ve `node_map` döndürür. **Çözüm/çizim hep genişletilmiş
+  model üzerinden yapılır**; `solve()` tepkilerde `node`u kullanıcı numarasına geri
+  çevirir, çizim `node_expanded`i kullanır. Bu ayrımı bozma.
 - `core/solver.py` — `solve(model) -> dict` (diyagram dizileri, ekstremler, tepkiler,
   `analysis` nesnesi). Kararsız sistemde kullanıcıya gösterilebilir `SolverError`
   fırlatır. `_map_reactions` PyCBA'nın kompakt tepki vektörünü (yalnızca tutulu DOF'lar,

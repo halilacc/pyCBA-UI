@@ -69,6 +69,8 @@ if "loads" not in st.session_state:
 # frontend değeri submit sonrası kalıcı olduğundan session_state'i silmek alanı
 # temizlemez; anahtarı değiştirmek temizler.
 st.session_state.setdefault("add_nonce", 0)
+# Açıklık içi mafsallar: (açıklık no, sol uçtan a [m]) çiftleri.
+st.session_state.setdefault("span_hinges", [])
 
 # ---------------------------------------------------------------- girdi paneli
 with st.sidebar:
@@ -118,6 +120,51 @@ with st.sidebar:
         help="Seçilen düğümde kiriş moment aktarmaz; şemada içi boş daire ile gösterilir.",
         key=f"hinges_{n_spans}",
     )
+
+    # Açıklık İÇİNDE mafsal: kullanıcı (açıklık, sol uçtan a) verir; core bunu
+    # açıklığı bölüp araya mesnetsiz düğüm koyarak çözer (BeamModel.expand).
+    # Kullanıcının açıklık ve yük numaralandırması değişmez.
+    with st.expander("Açıklık içi mafsal"):
+        st.caption(
+            "Mafsalı mesnet hizasında değil, açıklığın ortasında bir noktada "
+            "istiyorsan buradan ekle. Açıklık o noktadan otomatik bölünür."
+        )
+        with st.form("mafsal_ekle_form"):
+            mc1, mc2 = st.columns(2)
+            mh_span = int(mc1.number_input(
+                "Açıklık no", min_value=1, max_value=n_spans, value=1, step=1,
+                key=f"mh_span_{n_spans}",
+            ))
+            L_mh = float(spans[mh_span - 1])
+            mh_a = mc2.number_input(
+                "Konum a [m]", min_value=0.0, max_value=L_mh, value=None,
+                step=0.25, placeholder="0", key=f"mh_a_{mh_span}_{L_mh:g}",
+            )
+            mh_ekle = st.form_submit_button("➕ Mafsal ekle", width="stretch")
+        if mh_ekle:
+            a_val = 0.0 if mh_a is None else float(mh_a)
+            if not (0 < a_val < L_mh):
+                st.error(
+                    f"Konum açıklığın içinde olmalı (0 < a < {L_mh:g} m). "
+                    "Mesnet hizasındaki mafsal için üstteki düğüm seçimini kullan."
+                )
+            elif (mh_span, a_val) in st.session_state.span_hinges:
+                st.error("Bu mafsal zaten tanımlı.")
+            else:
+                st.session_state.span_hinges.append((mh_span, a_val))
+                st.rerun()
+        # Açıklık sayısı/uzunluğu küçültülünce geçersiz kalan mafsalları at —
+        # yoksa model sürekli doğrulama hatası verip arayüzü kilitler.
+        st.session_state.span_hinges = [
+            (s, a) for s, a in st.session_state.span_hinges
+            if 1 <= s <= n_spans and 0 < a < float(spans[s - 1])
+        ]
+        for j, (s, a) in enumerate(st.session_state.span_hinges):
+            lc1, lc2 = st.columns([3, 1])
+            lc1.write(f"Açıklık {s} · a = {a:g} m")
+            if lc2.button("🗑️", key=f"mh_sil_{j}"):
+                st.session_state.span_hinges.pop(j)
+                st.rerun()
 
     st.header("3. Yükler")
     # Önce hangi açıklığa yük konacağı, sonra yük tipi seçilir (doğal akış:
@@ -259,6 +306,7 @@ else:
 model = BeamModel(
     spans=spans, EI=EI, supports=supports,
     loads=st.session_state.loads, hinges=hinges,
+    span_hinges=list(st.session_state.span_hinges),
 )
 
 errors = model.validate()

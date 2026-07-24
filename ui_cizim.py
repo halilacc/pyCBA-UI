@@ -42,6 +42,10 @@ def ciz_sema(ax, model, reactions=None):
     reactions verilirse (core.solve çıktısı) düşey/moment tepki okları ve
     yatay tepkiler de eklenir; eksenel yükler her durumda çizilir.
     """
+    # Açıklık içi mafsallar düğüme çevrilmiş halde çizilir (bkz. BeamModel.expand):
+    # şemada bölünmüş açıklıklar ve mesnetsiz mafsal düğümü görünür. Toplam
+    # uzunluk ve yük konumları değişmez.
+    model = model.expand()[0]
     bp = BeamPlotter(build_beam(model), loads=None)  # loads=None -> beam.LM
     node_x = np.concatenate([[0.0], np.cumsum(model.spans)])
     n_node = len(node_x)
@@ -53,10 +57,14 @@ def ciz_sema(ax, model, reactions=None):
     ]
     bp.render_mpl(ax=ax, dimensions=True, load_values=True)
     if reactions:
-        # core düğüm no'su 1-tabanlı; BeamPlotter 0-tabanlı. Sıfır tepkiler atlanır.
-        vert = {r["node"] - 1: r["V"] for r in reactions
+        # BeamPlotter 0-tabanlı ve GENİŞLETİLMİŞ düğüm dizisiyle çalışır; bu
+        # yüzden "node" (kullanıcı numarası) değil "node_expanded" kullanılır.
+        # Sıfır tepkiler atlanır.
+        def _i(r):
+            return r.get("node_expanded", r["node"]) - 1
+        vert = {_i(r): r["V"] for r in reactions
                 if r["V"] is not None and abs(r["V"]) > 1e-6}
-        mom = {r["node"] - 1: r["M"] for r in reactions
+        mom = {_i(r): r["M"] for r in reactions
                if r["M"] is not None and abs(r["M"]) > 1e-6}
         bp.render_reactions_mpl(ax, vert, mom)
         ciz_yatay_tepkiler(ax, model, reactions)

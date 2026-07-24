@@ -21,8 +21,10 @@ def build_beam(model: BeamModel):
 
     Yüksüz/kararsız modellerde de çalışır (çizim için çözüm gerekmez);
     `beam.plot(ax=...)` ile mesnetler ve yükler şema olarak çizilir.
+    Açıklık içi mafsallar `expand()` ile düğüme çevrilmiş halde kullanılır —
+    şemada da bölünmüş geometri görünür (toplam uzunluk değişmez).
     """
-    return cba.BeamAnalysis(**model.to_pycba()).beam
+    return cba.BeamAnalysis(**model.expand()[0].to_pycba()).beam
 
 
 def _map_reactions(model: BeamModel, R_vector) -> list:
@@ -75,15 +77,20 @@ def solve(model: BeamModel) -> dict:
     # PyCBA'dan gelen tekil-matris hatası kullanıcıya nedeni anlatmaz. Derece
     # sayımı (bkz. BeamModel.static_degree) mekanizmayı isabetli bir mesajla
     # yakalar; yetersiz kaldığı düzenleri aşağıdaki LinAlgError yine tutar.
+    # Açıklık içi mafsallar burada düğüme çevrilir; bu noktadan sonra `gm`
+    # (genişletilmiş model) kullanılır. node_map, tepkileri kullanıcının düğüm
+    # numaralandırmasına geri çevirmek içindir.
+    gm, node_map = model.expand()
     derece = model.static_degree()
     if derece < 0:
         raise SolverError(
             f"Sistem kararsız (mekanizma): statik belirsizlik derecesi {derece}. "
-            f"{len(model.hinges)} mafsal için mesnet tepkisi yetersiz — mafsal "
-            "sayısını azaltın ya da mesnet ekleyin/güçlendirin."
+            f"{len(model.hinges) + len(model.span_hinges)} mafsal için mesnet "
+            "tepkisi yetersiz — mafsal sayısını azaltın ya da mesnet "
+            "ekleyin/güçlendirin."
         )
     try:
-        ba = cba.BeamAnalysis(**model.to_pycba())
+        ba = cba.BeamAnalysis(**gm.to_pycba())
         ba.analyze()
     except ValueError as e:
         raise SolverError(
@@ -106,14 +113,18 @@ def solve(model: BeamModel) -> dict:
     # Eksenel çözüm (PyCBA'dan bağımsız). Yatay tutulu mesnet yoksa ve eksenel
     # yük varsa kullanıcıya gösterilebilir hata üret.
     try:
-        ax_res = solve_axial(model)
+        ax_res = solve_axial(gm)
     except ValueError as e:
         raise SolverError(f"Eksenel sistem çözülemedi: {e}") from e
 
-    reactions = _map_reactions(model, ba.beam_results.R)
+    reactions = _map_reactions(gm, ba.beam_results.R)
     for r in reactions:
         if r["node"] in ax_res["H"]:
             r["H"] = ax_res["H"][r["node"]]
+        # "node" kullanıcının düğüm numarasına döner; çizim katmanı genişletilmiş
+        # indeksi ("node_expanded") kullanır. Açıklık içi mafsal yoksa ikisi aynıdır.
+        r["node_expanded"] = r["node"]
+        r["node"] = node_map[r["node"] - 1]
     N = ax_res["N"]
 
     return {
