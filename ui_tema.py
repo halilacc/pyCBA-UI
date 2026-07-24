@@ -25,11 +25,15 @@ _VARS = {
         "bg": "#FBFBFA", "surface": "#FFFFFF", "surface2": "#F3F2EF",
         "ink": "#1C1B19", "muted": "#6F6B64", "line": "rgba(28,27,25,0.10)",
         "acc": "#4338CA", "acc2": "#6366F1",
+        # Parlama (glare) rengi moda göre TERS çalışır: aydınlıkta kart yüzeyi
+        # beyaz olduğu için beyaz parlama görünmez — hafif aksan tonu kullanılır.
+        "glare": "rgba(67,56,202,0.10)",
     },
     "gece": {
         "bg": "#15161B", "surface": "#1E2028", "surface2": "#262933",
         "ink": "#E9E7E2", "muted": "#9C988F", "line": "rgba(255,255,255,0.12)",
         "acc": "#818CF8", "acc2": "#A5B4FC",
+        "glare": "rgba(255,255,255,0.10)",
     },
 }
 
@@ -40,7 +44,7 @@ def _degiskenler(mod: str) -> str:
         "<style>:root{"
         f"--pc-bg:{v['bg']};--pc-surface:{v['surface']};--pc-surface2:{v['surface2']};"
         f"--pc-ink:{v['ink']};--pc-muted:{v['muted']};--pc-line:{v['line']};"
-        f"--pc-acc:{v['acc']};--pc-acc2:{v['acc2']};"
+        f"--pc-acc:{v['acc']};--pc-acc2:{v['acc2']};--pc-glare:{v['glare']};"
         "--pc-r:14px;--pc-r-sm:10px;"
         "--pc-ease:cubic-bezier(0.23,1,0.32,1);"
         "--pc-sh-sm:0 1px 2px rgba(0,0,0,0.06);"
@@ -109,8 +113,28 @@ h1, h2, h3, [data-testid="stMetricValue"],
 }
 [data-testid="stMetricValue"] { font-weight: 600; font-size: 1.6rem; color: var(--pc-ink) !important; }
 [data-testid="stMetricLabel"], [data-testid="stMetricLabel"] * { color: var(--pc-muted) !important; font-weight: 500; }
+/* Parlama (glare) süpürmesi — react-bits GlareHover'dan uyarlandı.
+   Orijinal, dev bir arkaplanı `background-position` ile kaydırıyor; bizim kart
+   oranlarımızda bant süpürüp çıkmak yerine solda park ediyordu (tarayıcıda
+   ölçüldü). Bunun yerine sabit genişlikli bir bant `translateX` ile kaydırılır:
+   davranış oran-bağımsız ve öngörülebilir, üstelik bu modülün ilkesine (yalnız
+   transform/opacity animasyonu) uyar.
+   Kart zaten position:relative + overflow:hidden; ::before üst aksan çubuğu
+   için kullanıldığından ::after seçildi. pointer-events:none — tıklamayı engellemez.
+   Geçiş YALNIZ :hover kuralında: fare ayrılınca bant anında başa döner, yoksa
+   çıkışta ikinci (ters) bir süpürme görünürdü (orijinalin play-once varyantı). */
+[data-testid="stMetric"]::after {
+  content: ""; position: absolute; top: 0; bottom: 0; left: 0; width: 55%;
+  pointer-events: none;
+  background: linear-gradient(105deg, transparent 0%, var(--pc-glare) 50%, transparent 100%);
+  transform: translateX(-160%);
+}
 @media (hover: hover) and (pointer: fine) {
   [data-testid="stMetric"]:hover { transform: translateY(-3px); box-shadow: var(--pc-sh-md); border-color: var(--pc-acc); }
+  [data-testid="stMetric"]:hover::after {
+    transform: translateX(250%);
+    transition: transform 700ms var(--pc-ease);
+  }
 }
 
 /* --- Butonlar: press feedback + hover --- */
@@ -203,6 +227,8 @@ h1, h2, h3, [data-testid="stMetricValue"],
   [data-testid="stMetric"], .stButton > button, .stDownloadButton > button,
   [data-testid="stFormSubmitButton"] > button, [data-testid="stExpander"] details, .pc-tablo tbody tr { transition: none !important; }
   [data-testid="stMetric"]:hover { transform: none !important; }
+  /* Parlama tamamen kapatılır (kayan gradyan hareket algısı yaratır). */
+  [data-testid="stMetric"]::after { display: none !important; }
 }
 </style>"""
 
