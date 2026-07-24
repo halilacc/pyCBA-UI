@@ -133,7 +133,12 @@ h1, h2, h3, [data-testid="stMetricValue"],
   [data-testid="stMetric"]:hover { transform: translateY(-3px); box-shadow: var(--pc-sh-md); border-color: var(--pc-acc); }
   [data-testid="stMetric"]:hover::after {
     transform: translateX(250%);
-    transition: transform 700ms var(--pc-ease);
+    /* Bilerek --pc-ease DEĞİL: o eğri (expo-out) hareketin çoğunu ilk 180 ms'de
+       bitiriyor; bant kart içinde yalnız ~190 ms görünüp "parlama" yerine "flaş"
+       gibi okunuyordu (tarayıcıda ölçüldü). Süpürmede sabit hız doğru olan; bant
+       iki uçta da kart dışında olduğundan linear'ın sert başlangıç/bitişi
+       görünmez. Kart yükselmesi --pc-ease ile kalır — orada expo-out yerinde. */
+    transition: transform 700ms linear;
   }
 }
 
