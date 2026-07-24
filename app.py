@@ -232,6 +232,24 @@ with st.sidebar:
             st.session_state.add_nonce += 1
             st.rerun()
 
+    # -------------------------------------------------------------- görünüm
+    # Hangi grafiklerin çizileceği. Kenar çubuğunda tutulur ki her durumda
+    # (yük yokken, çözüm hata verirken de) erişilebilsin; ana alandaki çizim
+    # bloklarının hepsi bu bayrakları okur.
+    st.header("4. Görünüm")
+    st.caption("Kapatılan grafik hiç çizilmez; sayısal sonuçlar etkilenmez.")
+    # Normal kuvvet grafiği yalnız eksenel yük varken anlamlı — yoksa toggle da
+    # gösterilmez (kullanıcı boş bir anahtarla uğraşmasın).
+    has_axial = any(ld.kind in AXIAL_KINDS for ld in st.session_state.loads)
+    goster_sema = st.toggle("Kiriş şeması", value=True, key="goster_sema")
+    goster_N = (
+        st.toggle("Normal kuvvet (N)", value=True, key="goster_N")
+        if has_axial else False
+    )
+    goster_V = st.toggle("Kesme kuvveti (V)", value=True, key="goster_V")
+    goster_M = st.toggle("Moment (M)", value=True, key="goster_M")
+    goster_D = st.toggle("Sehim", value=True, key="goster_D")
+
 # --------------------------------------------------------------- yük listesi
 st.subheader("Tanımlı yükler")
 if not st.session_state.loads:
@@ -318,14 +336,21 @@ if errors:
 # Kiriş şeması: mesnetler + yükler konumlarıyla çizilir, model her değiştiğinde
 # güncellenir — kullanıcı yükü nereye etki ettirdiğini burada görür. Çözüm
 # yapılabiliyorsa mesnet tepkileri de ok olarak şemanın üzerine eklenir.
-st.subheader("Kiriş şeması")
+# Şema üç ayrı akışta (yük yok / çözülemedi / normal) çizildiği için tek
+# yardımcıya alındı; "Görünüm" toggle'ı kapalıysa hiçbirinde çizilmez.
+def _sema_ciz(reactions=None, yukseklik=2.6):
+    if not goster_sema:
+        return
+    st.subheader("Kiriş şeması")
+    fig_schema, ax_schema = plt.subplots(figsize=(10, yukseklik))
+    ciz_sema(ax_schema, model, reactions)
+    st.pyplot(fig_schema, width="stretch")
+    plt.close(fig_schema)
+
 
 # Yük yoksa çözüm (dolayısıyla tepki) yok: yalnızca şemayı çiz ve dur.
 if not st.session_state.loads:
-    fig_schema, ax_schema = plt.subplots(figsize=(10, 2.6))
-    ciz_sema(ax_schema, model)
-    st.pyplot(fig_schema, width="stretch")
-    plt.close(fig_schema)
+    _sema_ciz()
     st.info("Sonuçlar ve mesnet tepkileri için en az bir yük ekleyin.")
     st.stop()
 
@@ -334,24 +359,19 @@ if not st.session_state.loads:
 try:
     result = solve(model)
 except SolverError as e:
-    fig_schema, ax_schema = plt.subplots(figsize=(10, 2.6))
-    ciz_sema(ax_schema, model)
-    st.pyplot(fig_schema, width="stretch")
-    plt.close(fig_schema)
+    _sema_ciz()
     st.error(str(e))
     st.stop()
 
 # Şema + mesnet tepki okları (oklar/etiketler için biraz daha yüksek figür).
-fig_schema, ax_schema = plt.subplots(figsize=(10, 3.4))
-ciz_sema(ax_schema, model, result["reactions"])
-st.pyplot(fig_schema, width="stretch")
-plt.close(fig_schema)
+_sema_ciz(result["reactions"], yukseklik=3.4)
 
 # ------------------------------------------------------------------ sonuçlar
 st.subheader("Sonuçlar")
 
-# Eksenel yük varsa normal kuvvet metriği ve diyagramı da gösterilir.
-has_axial = any(ld.kind in AXIAL_KINDS for ld in st.session_state.loads)
+# (has_axial kenar çubuğunda "4. Görünüm" için zaten hesaplandı.)
+# Metrik kartları görünüm toggle'larından etkilenmez: sayısal özet kompakttır ve
+# grafiği kapatan kullanıcı da ekstrem değerleri görmek ister.
 
 # Tutarlılık için her büyüklükte işaretli maks + min gösterilir (yalnız mutlak
 # değil): negatif ekstremler mühendislik açısından da anlamlıdır (örn. mesnet
@@ -394,54 +414,70 @@ _KIRMIZI, _KIRMIZI_DOLGU = "#d62728", "rgba(214,39,40,0.12)"
 _g_yazi = "#E9E7E2" if karanlik else "#1C1B19"
 _g_izgara = "rgba(255,255,255,0.10)" if karanlik else "rgba(28,27,25,0.08)"
 _g_sifir = "rgba(233,231,226,0.55)" if karanlik else "rgba(28,27,25,0.45)"
+# Paneller "4. Görünüm" toggle'larına göre süzülür; kapatılan panel hiç
+# eklenmediği için figür yüksekliği ve x ekseni başlığı kendiliğinden uyar.
 paneller = []
-if has_axial:
+if has_axial and goster_N:
     # Şema ile ortak yeşil; ince çizgi + düşük opaklık dolgu (dataviz).
     paneller.append(
         ("Normal", "kN", result["xN"], result["N"],
          NORMAL_KUVVET_YESILI, "rgba(44,160,44,0.15)", False)
     )
-paneller += [
-    # (ad, birim, x, y, çizgi_rengi, dolgu_rgba|None, y_ekseni_ters)
-    ("Kesme", "kN", result["x"], result["V"], _KIRMIZI, _KIRMIZI_DOLGU, False),
-    ("Moment", "kNm", result["x"], result["M"], _KIRMIZI, _KIRMIZI_DOLGU, True),
-    ("Sehim", "mm", result["x"], result["D"] * 1000.0, _KIRMIZI, None, False),
-]
-n_panel = len(paneller)
-fig = make_subplots(rows=n_panel, cols=1, shared_xaxes=True, vertical_spacing=0.05)
-for i, (ad, birim, xr, yr, renk, dolgu, ters) in enumerate(paneller, start=1):
-    fig.add_trace(
-        go.Scatter(
-            x=xr, y=yr, mode="lines", name=ad,
-            line=dict(color=renk, width=1.6),
-            fill="tozeroy" if dolgu else None, fillcolor=dolgu,
-            hovertemplate=f"{ad}: %{{y:.4g}} {birim}<extra></extra>",
-        ),
-        row=i, col=1,
+# (ad, birim, x, y, çizgi_rengi, dolgu_rgba|None, y_ekseni_ters)
+if goster_V:
+    paneller.append(
+        ("Kesme", "kN", result["x"], result["V"], _KIRMIZI, _KIRMIZI_DOLGU, False)
     )
-    fig.add_hline(y=0, line=dict(color=_g_sifir, width=1), row=i, col=1)
-    fig.update_yaxes(title_text=f"{ad} [{birim}]", row=i, col=1)
-    if ters:  # moment: sagging-pozitif aşağıda (PyCBA konvansiyonu korunur)
-        fig.update_yaxes(autorange="reversed", row=i, col=1)
-fig.update_xaxes(title_text="Kiriş boyunca konum [m]", row=n_panel, col=1)
-# fixedrange=True: dokunmatik ekranda grafik zoom/pan/pinch yapmaz — parmak
-# hareketi sayfayı kaydırır, grafiği değil. Hover ipuçları çalışmaya devam eder.
-fig.update_xaxes(gridcolor=_g_izgara, zerolinecolor=_g_sifir, linecolor=_g_izgara, fixedrange=True)
-fig.update_yaxes(gridcolor=_g_izgara, zerolinecolor=_g_sifir, fixedrange=True)
-fig.update_layout(
-    # Başlık rengi açıkça verilir; aksi halde Streamlit'in plotly şablonu koyu
-    # bırakıp gece modunda okunmaz kılıyordu.
-    title=dict(text="Kesit Tesirleri Diyagramları", y=0.99, yanchor="top",
-               font=dict(color=_g_yazi)),
-    margin=dict(t=70),
-    height=240 * n_panel + 90,  # panel başına ~240 px; başlık/eksen için pay
-    showlegend=False,
-    paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
-    font=dict(color=_g_yazi),
-)
-# displayModeBar=False: zoom/pan araç çubuğu gizli (fixedrange ile zaten işlevsiz)
-# — hem mobilde başlıkla çakışmasını önler hem arayüzü sadeleştirir.
-st.plotly_chart(fig, width="stretch", config={"displayModeBar": False})
+if goster_M:
+    paneller.append(
+        ("Moment", "kNm", result["x"], result["M"], _KIRMIZI, _KIRMIZI_DOLGU, True)
+    )
+if goster_D:
+    paneller.append(
+        ("Sehim", "mm", result["x"], result["D"] * 1000.0, _KIRMIZI, None, False)
+    )
+n_panel = len(paneller)
+if n_panel == 0:
+    # Hepsi kapalı: boş figür çizmek yerine nereden açılacağını söyle.
+    st.info(
+        "Tüm diyagramlar kapalı — kenar çubuğundaki **4. Görünüm** bölümünden "
+        "açabilirsin. Metrikler, mesnet tepkileri ve CSV indirme etkilenmez."
+    )
+else:
+    fig = make_subplots(rows=n_panel, cols=1, shared_xaxes=True, vertical_spacing=0.05)
+    for i, (ad, birim, xr, yr, renk, dolgu, ters) in enumerate(paneller, start=1):
+        fig.add_trace(
+            go.Scatter(
+                x=xr, y=yr, mode="lines", name=ad,
+                line=dict(color=renk, width=1.6),
+                fill="tozeroy" if dolgu else None, fillcolor=dolgu,
+                hovertemplate=f"{ad}: %{{y:.4g}} {birim}<extra></extra>",
+            ),
+            row=i, col=1,
+        )
+        fig.add_hline(y=0, line=dict(color=_g_sifir, width=1), row=i, col=1)
+        fig.update_yaxes(title_text=f"{ad} [{birim}]", row=i, col=1)
+        if ters:  # moment: sagging-pozitif aşağıda (PyCBA konvansiyonu korunur)
+            fig.update_yaxes(autorange="reversed", row=i, col=1)
+    fig.update_xaxes(title_text="Kiriş boyunca konum [m]", row=n_panel, col=1)
+    # fixedrange=True: dokunmatik ekranda grafik zoom/pan/pinch yapmaz — parmak
+    # hareketi sayfayı kaydırır, grafiği değil. Hover ipuçları çalışmaya devam eder.
+    fig.update_xaxes(gridcolor=_g_izgara, zerolinecolor=_g_sifir, linecolor=_g_izgara, fixedrange=True)
+    fig.update_yaxes(gridcolor=_g_izgara, zerolinecolor=_g_sifir, fixedrange=True)
+    fig.update_layout(
+        # Başlık rengi açıkça verilir; aksi halde Streamlit'in plotly şablonu koyu
+        # bırakıp gece modunda okunmaz kılıyordu.
+        title=dict(text="Kesit Tesirleri Diyagramları", y=0.99, yanchor="top",
+                   font=dict(color=_g_yazi)),
+        margin=dict(t=70),
+        height=240 * n_panel + 90,  # panel başına ~240 px; başlık/eksen için pay
+        showlegend=False,
+        paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+        font=dict(color=_g_yazi),
+    )
+    # displayModeBar=False: zoom/pan araç çubuğu gizli (fixedrange ile zaten
+    # işlevsiz) — hem mobilde başlıkla çakışmasını önler hem arayüzü sadeleştirir.
+    st.plotly_chart(fig, width="stretch", config={"displayModeBar": False})
 st.download_button(
     "⬇️ Diyagram verileri (CSV)",
     _diyagram_csv(
