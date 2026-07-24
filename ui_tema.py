@@ -237,8 +237,33 @@ label, [data-testid="stWidgetLabel"] *, [data-testid="stCaptionContainer"], [dat
    (ve select'te "input içeren div" ile) hedeflenir, yoksa gece modunda beyaz kalır. */
 [data-testid="stNumberInputContainer"],
 [data-testid="stSelectbox"] div:has(> input),
+[data-testid="stMultiSelect"] [data-baseweb="select"],
+[data-testid="stMultiSelect"] [data-baseweb="select"] > div,
+[data-testid="stMultiSelect"] [data-baseweb="select"] > div > div,
 [data-baseweb="textarea"], [data-baseweb="textarea"] textarea {
   background-color: var(--pc-surface2) !important; border-color: var(--pc-line) !important;
+}
+/* Çoklu seçim (İç mafsallı düğümler): kutu yüzeyi yukarıda, metin ve seçilen
+   değer çipleri burada. stSelectbox kuralları bunu kapsamıyordu — kutu gece
+   modunda beyaz kalıyordu. Çip aksan rengiyle dolu olduğu için üzerindeki yazı
+   her iki modda da beyazdır (değişkene bağlanmaz). */
+[data-testid="stMultiSelect"], [data-testid="stMultiSelect"] input,
+[data-testid="stMultiSelect"] [data-baseweb="select"] > div {
+  color: var(--pc-ink) !important;
+}
+/* "Choose options" ipucu baseweb'de input placeholder'ı DEĞİL, ayrı bir <div>
+   ve rengini açık temanın metninden alıyor (DOM'dan ölçüldü: rgba(28,27,25,.6))
+   — koyu zeminde okunmuyordu. Emotion sınıfları (st-cm, st-bp …) sürüm sürüm
+   değiştiği için yol üzerinden hedeflenir. */
+[data-testid="stMultiSelect"] [data-baseweb="select"] div {
+  color: var(--pc-muted) !important;
+}
+/* Seçilen değer çipleri. Yol TAM yazılır ki yukarıdaki kuraldan daha spesifik
+   olsun; aksi halde çip yazısı da sönükleşirdi (ikisi de !important, kazananı
+   spesifiklik belirler). */
+[data-testid="stMultiSelect"] [data-baseweb="select"] [data-baseweb="tag"],
+[data-testid="stMultiSelect"] [data-baseweb="select"] [data-baseweb="tag"] * {
+  background-color: var(--pc-acc) !important; color: #FFFFFF !important;
 }
 [data-testid="stNumberInputField"], [data-baseweb="textarea"] textarea,
 [data-testid="stSelectbox"] div:has(> input), [data-testid="stSelectbox"] input {
@@ -269,13 +294,40 @@ label, [data-testid="stWidgetLabel"] *, [data-testid="stCaptionContainer"], [dat
 [data-testid="stNumberInputStepDown"]:not(:disabled) * {
   color: var(--pc-ink) !important;
 }
-/* İkincil butonlar / indirme / form gönder (secondary) */
-.stButton > button, .stDownloadButton > button, [data-testid="stFormSubmitButton"] > button[kind="secondary"] {
+/* Açılır listeler (selectbox + multiselect). Portal ile <body> altına basıldığı
+   için app kapsayıcısını hedefleyen kurallar ulaşmıyordu; testid/baseweb ile
+   doğrudan hedeflenir. DOM'dan ölçülen açık tema değerleri: popover #F3F2EF,
+   liste #FBFBFA, seçenek metni #1C1B19. */
+[data-baseweb="popover"], [data-testid="stSelectboxVirtualDropdown"],
+[data-testid="stSelectboxVirtualDropdownEmpty"] {
+  background-color: var(--pc-surface2) !important;
+}
+[data-testid="stSelectboxVirtualDropdown"] li,
+[data-testid="stSelectboxVirtualDropdown"] li *,
+[data-testid="stSelectboxVirtualDropdownEmpty"],
+[data-testid="stSelectboxVirtualDropdownEmpty"] li {
+  color: var(--pc-ink) !important;
+}
+[data-testid="stSelectboxVirtualDropdown"] li:hover {
+  background-color: color-mix(in srgb, var(--pc-acc) 22%, transparent) !important;
+}
+
+/* İkincil butonlar / indirme / form gönder.
+   Form gönder butonunda `kind` değeri "secondary" DEĞİL, "secondaryFormSubmit"
+   (DOM'dan doğrulandı: kind=secondaryFormSubmit, data-testid=
+   stBaseButton-secondaryFormSubmit). Eski [kind="secondary"] seçicisi bu yüzden
+   hiçbir şeye uymuyor, "Mafsal ekle" gece modunda beyaz kalıyordu. Yalnız
+   ikincil hedeflenir; birincil (mor "Yük ekle") vurgu rengini korur. */
+.stButton > button, .stDownloadButton > button,
+[data-testid="stFormSubmitButton"] button[kind="secondaryFormSubmit"] {
   background-color: var(--pc-surface) !important; color: var(--pc-ink) !important; border-color: var(--pc-line) !important;
 }
-/* Form ve genişleyen yüzeyi */
+/* Form ve genişleyen yüzeyi. `details` gövdeyi koyulaştırıyor ama `summary`
+   (başlık çubuğu) kendi açık zeminini taşıdığı için ayrıca bastırılmalı. */
 [data-testid="stForm"] { background-color: var(--pc-surface) !important; border-color: var(--pc-line) !important; }
-[data-testid="stExpander"] details { background-color: var(--pc-surface) !important; }
+[data-testid="stExpander"] details, [data-testid="stExpander"] summary {
+  background-color: var(--pc-surface) !important;
+}
 [data-testid="stExpander"] summary, [data-testid="stExpander"] summary * { color: var(--pc-ink) !important; }
 </style>"""
 
