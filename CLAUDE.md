@@ -83,6 +83,48 @@ Dikkat edilecekler:
   değişince bayat değer taşınmasın diye; bu deseni bozma.
 - Sehim `D` metre cinsindendir; UI mm'ye çevirerek gösterir.
 
+## Gece modu (ui_tema.py)
+
+**Karar (2026-07-25):** Streamlit'in kendi `[theme.dark]` tabanına GEÇİLMEDİ.
+Geçiş teknik olarak mümkün (1.59 `[theme.light]`/`[theme.dark]`/`theme.dark.sidebar`
+destekliyor) ve `_GECE_CSS`'i tamamen silerdi; ama Streamlit'in teması Python'dan
+değiştirilemiyor (`st.context.theme.type` salt-okunur), yani kenar çubuğundaki
+"🌙 Gece modu" anahtarı kaybolur ve kullanıcı ⋮ → Settings → Appearance'a mahkûm
+kalırdı. Anahtarın keşfedilebilirliği tercih edildi. Bu kararı tekrar açmadan
+`_GECE_CSS`'i kaldırma.
+
+Bedeli: `config.toml` `base = "light"` olduğu için Streamlit TÜM widget'ları açık
+temayla üretir; her yeni widget türü gece modunda beyaz kalabilir. Yeni bir widget
+eklerken gece modunu **gözle değil, tarayarak** doğrula — sayfayı gece modunda aç,
+konsolda:
+
+```js
+function lum(c){const m=c.match(/[\d.]+/g);if(!m||(m[3]!==undefined&&+m[3]<0.5))return -1;
+  return (+m[0]*0.299+ +m[1]*0.587+ +m[2]*0.114);}
+[...document.querySelectorAll('[data-testid="stSidebar"] *')].flatMap(e=>{
+  const s=getComputedStyle(e), r=[];
+  if(lum(s.backgroundColor)>150) r.push(['ACIK-ZEMIN',e.dataset.testid,s.backgroundColor]);
+  else if(lum(s.color)>=0&&lum(s.color)<90&&(e.innerText||'').trim()&&!e.children.length)
+    r.push(['KOYU-YAZI',e.dataset.testid,s.color]);
+  return r;});
+```
+
+Açık tema değerleri (bunları görürsen kural eksik): zemin `#FBFBFA` / `#F3F2EF`,
+metin `#1C1B19` veya `rgba(28,27,25,0.6)`. Yanlış pozitif: `stCheckbox` içindeki
+12×12 topuz açık olmalı (mor ray üzerinde).
+
+Yaşanmış tuzaklar — tahmin etme, DOM'dan `getComputedStyle` ile ölç:
+- Form gönder butonunda `kind` değeri `secondary` DEĞİL, **`secondaryFormSubmit`**.
+- Açılır listeler portal ile `<body>` altına basılır; app kapsayıcısını hedefleyen
+  kurallar ulaşmaz (`[data-baseweb="popover"]`, `stSelectboxVirtualDropdown`).
+- Multiselect'in "Choose options" ipucu input placeholder'ı değil, ayrı bir `<div>`.
+- `number_input` adım ikonlarının rengi SATIR İÇİ verilir; devre dışıyken açık
+  temanın `fadedText40`'ı olur (alan boşken −/+ kaybolur).
+- Emotion sınıfları (`st-emotion-cache-…`, `st-cm`) sürümle değişir; asla seçici
+  olarak kullanma — testid/baseweb/öznitelik yolu kullan.
+- `ui_tema.py` içe aktarılmış modüldür: değiştirince Streamlit'i **yeniden başlat**,
+  yalnız sayfayı yenilemek yetmez.
+
 ## 2. Aşama (henüz yok)
 
 Kiriş fotoğrafından model çıkarma (LLM ile) planlanıyor; formu ön-dolduracak, `core/`
