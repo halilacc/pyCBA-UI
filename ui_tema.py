@@ -28,12 +28,26 @@ _VARS = {
         # Parlama (glare) rengi moda göre TERS çalışır: aydınlıkta kart yüzeyi
         # beyaz olduğu için beyaz parlama görünmez — hafif aksan tonu kullanılır.
         "glare": "rgba(67,56,202,0.10)",
+        # Buton kenarı (SpecularButton'daki baseColor rolü: kenara yapışan koyu
+        # şerit, kalınlık hissi verir). İstenen ton #0D0D0D; aydınlıkta düz siyah
+        # beyaz/mor buton üzerinde sert bir çerçeve gibi durduğu için aynı ton
+        # düşük opaklıkla kullanılır — kenar tanımlı ama sert değil.
+        "btn_edge": "rgba(13,13,13,0.22)",
+        # Birincil buton dolgusu. Aydınlıkta sayfa aksanı; gecede biraz daha
+        # parlak indigo (koyu zeminde varlık kazansın) — beyaz yazıyla kontrast
+        # 6.7:1, erişilebilir kalır. --pc-acc'in gece değeri (#818CF8) beyaz
+        # yazıyla 2.9:1'e düştüğü için dolgu olarak KULLANILMAZ.
+        "btn_primary": "#4338CA",
     },
     "gece": {
         "bg": "#15161B", "surface": "#1E2028", "surface2": "#262933",
         "ink": "#E9E7E2", "muted": "#9C988F", "line": "rgba(255,255,255,0.12)",
         "acc": "#818CF8", "acc2": "#A5B4FC",
         "glare": "rgba(255,255,255,0.10)",
+        # Gecede istenen #0D0D0D düz kullanılır: yüzeyden koyu olduğu için
+        # kenar gerçekten kalınlık/derinlik okunur.
+        "btn_edge": "#0D0D0D",
+        "btn_primary": "#4F46E5",
     },
 }
 
@@ -45,6 +59,7 @@ def _degiskenler(mod: str) -> str:
         f"--pc-bg:{v['bg']};--pc-surface:{v['surface']};--pc-surface2:{v['surface2']};"
         f"--pc-ink:{v['ink']};--pc-muted:{v['muted']};--pc-line:{v['line']};"
         f"--pc-acc:{v['acc']};--pc-acc2:{v['acc2']};--pc-glare:{v['glare']};"
+        f"--pc-btn-edge:{v['btn_edge']};--pc-btn-primary:{v['btn_primary']};"
         "--pc-r:14px;--pc-r-sm:10px;"
         "--pc-ease:cubic-bezier(0.23,1,0.32,1);"
         "--pc-sh-sm:0 1px 2px rgba(0,0,0,0.06);"
@@ -155,6 +170,67 @@ h1, h2, h3, [data-testid="stMetricValue"],
   transform: scale(0.98);
 }
 
+/* --- Specular buton kenarı (react-bits SpecularButton yaklaşımı) ---
+   Orijinal WebGL'dir: ogl + GLSL shader, yuvarlatılmış dikdörtgenin SDF'sini
+   alıp ışık açısına göre kenarda simetrik parlama üretir ve fareyi izler.
+   Streamlit'te canvas'ı butonun içine koyup her rerun'da yeniden bağlamak
+   gerektiğinden birebir taşınamaz; görünüm saf CSS ile yaklaşıklanır:
+   conic-gradient + mask ile GERÇEK bir kenar şeridi çizilir, iki parlama yayı
+   180° arayla konur (shader'ın simetrik specular'ı) ve hover'da döner.
+   Fare takibi yerine hover — JS gerektirmeyen en yakın karşılık. */
+@property --pc-spec-angle {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
+}
+[data-testid="stFormSubmitButton"] button {
+  position: relative;
+  /* Kenara yapışan koyu şerit — shader'daki baseColor'ın karşılığı. */
+  box-shadow: inset 0 0 0 1px var(--pc-btn-edge);
+}
+[data-testid="stFormSubmitButton"] button[kind="primaryFormSubmit"] {
+  background-color: var(--pc-btn-primary) !important;
+  border-color: var(--pc-btn-primary) !important;
+}
+[data-testid="stFormSubmitButton"] button::before {
+  content: ""; position: absolute; inset: 0; border-radius: inherit;
+  padding: 1.5px;                      /* şerit kalınlığı (shader: uThickness) */
+  background: conic-gradient(from var(--pc-spec-angle),
+    transparent 0deg, var(--pc-spec) 22deg, transparent 52deg,
+    transparent 180deg, var(--pc-spec) 202deg, transparent 232deg,
+    transparent 360deg);
+  /* İçi oyulur, yalnız kenar şeridi kalır. */
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+          mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+          mask-composite: exclude;
+  opacity: 0;
+  transition: opacity 260ms var(--pc-ease);
+  pointer-events: none;
+  /* Animasyon HER ZAMAN tanımlı, yalnız duraklatılmış. Hover'da eklenip
+     çıkarıldığında opaklık geçişi bozuluyor ve şerit fare ayrılınca opacity:1'de
+     takılı kalıyordu (tarayıcıda ölçüldü). Böylece hover yalnız play-state ve
+     opacity'yi değiştirir; duraklatılmış animasyon kare üretmez. */
+  animation: pcSpecular 2.6s linear infinite;
+  animation-play-state: paused;
+}
+/* Parlama rengi sayfanın moru. İkincil buton açık/koyu düz yüzeydedir; ana
+   aksan orada doğrudan okunur. Birincil butonun DOLGUSU zaten mor olduğu için
+   aynı aileden bir ton üzerine binince kayboluyordu (tarayıcıda görüldü);
+   orijinal bileşen de zaten beyaz lineColor kullanır. Mor aileden çıkmadan
+   okunur olması için açık aksan beyazla karıştırılır — specular ışık hissi. */
+[data-testid="stFormSubmitButton"] button { --pc-spec: var(--pc-acc); }
+[data-testid="stFormSubmitButton"] button[kind="primaryFormSubmit"] {
+  --pc-spec: color-mix(in srgb, var(--pc-acc2) 45%, #FFFFFF);
+}
+@media (hover: hover) and (pointer: fine) {
+  [data-testid="stFormSubmitButton"] button:hover::before {
+    opacity: 1;
+    animation-play-state: running;
+  }
+}
+@keyframes pcSpecular { to { --pc-spec-angle: 360deg; } }
+
 /* --- Genişleyen yük kartları --- */
 [data-testid="stExpander"] details {
   border: 1px solid var(--pc-line) !important; border-radius: var(--pc-r-sm) !important; overflow: hidden;
@@ -234,6 +310,9 @@ h1, h2, h3, [data-testid="stMetricValue"],
   [data-testid="stMetric"]:hover { transform: none !important; }
   /* Parlama tamamen kapatılır (kayan gradyan hareket algısı yaratır). */
   [data-testid="stMetric"]::after { display: none !important; }
+  /* Specular kenar KALIR ama dönmez: statik bir kenar vurgusu hareket değildir,
+     butonun etkileşilebilir olduğunu göstermeye devam eder. */
+  [data-testid="stFormSubmitButton"] button:hover::before { animation-play-state: paused !important; }
 }
 </style>"""
 
