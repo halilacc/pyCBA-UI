@@ -142,6 +142,13 @@ h1, h2, h3, [data-testid="stMetricValue"],
   background: var(--pc-surface); box-shadow: var(--pc-sh-sm);
 }
 
+/* --- Girdi ipucu metni --- */
+/* Streamlit, sayı/metin girdisine odaklanınca alanın içine "Press Enter to submit
+   form" / "Press Enter to apply" ipucunu basar (InputInstructions bileşeni). Hem
+   İngilizce hem de girilen değerin üstüne binmesi rahatsız edici; her yerde gizle.
+   Yalnız görsel gizleme — Enter ile gönderme çalışmaya devam eder. */
+[data-testid="InputInstructions"] { display: none !important; }
+
 /* --- Girdi odak halkası (Streamlit 1.59: baseweb sarmalayıcı yerine testid) --- */
 [data-testid="stNumberInputContainer"]:focus-within,
 [data-testid="stSelectbox"] div:has(> input):focus-within {
