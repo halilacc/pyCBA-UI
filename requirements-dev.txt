@@ -1,0 +1,4 @@
+# Yalnız geliştirme/test bağımlılıkları. requirements.txt'e KOYMA: Streamlit
+# Community Cloud onu kurar, sunucuda pytest'e gerek yok.
+-r requirements.txt
+pytest>=8.0

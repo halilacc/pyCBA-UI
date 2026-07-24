@@ -107,6 +107,18 @@ with st.sidebar:
             )
         )
 
+    # Gerber kirişi: ara düğümlere iç mafsal. Uç düğümlerde mafsal anlamsızdır
+    # (orada tek eleman var; mesnet tipi zaten belirler), bu yüzden seçenekler
+    # yalnız 2..n_spans. Anahtar açıklık sayısına bağlı — açıklık azalınca artık
+    # var olmayan düğüm no'su seçili kalmasın.
+    hinges = st.multiselect(
+        "İç mafsallı düğümler (Gerber)",
+        options=list(range(2, n_spans + 1)),
+        format_func=lambda h: f"Düğüm {h}",
+        help="Seçilen düğümde kiriş moment aktarmaz; şemada içi boş daire ile gösterilir.",
+        key=f"hinges_{n_spans}",
+    )
+
     st.header("3. Yükler")
     # Önce hangi açıklığa yük konacağı, sonra yük tipi seçilir (doğal akış:
     # "nereye" → "ne"). Anahtar açıklık sayısına bağlı: kullanıcı açıklık sayısını
@@ -244,7 +256,10 @@ else:
                     st.rerun()
 
 # --------------------------------------------------------------------- çözüm
-model = BeamModel(spans=spans, EI=EI, supports=supports, loads=st.session_state.loads)
+model = BeamModel(
+    spans=spans, EI=EI, supports=supports,
+    loads=st.session_state.loads, hinges=hinges,
+)
 
 errors = model.validate()
 if errors:

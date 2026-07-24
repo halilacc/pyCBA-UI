@@ -60,8 +60,28 @@ def ciz_sema(ax, model, reactions=None):
                if r["M"] is not None and abs(r["M"]) > 1e-6}
         bp.render_reactions_mpl(ax, vert, mom)
         ciz_yatay_tepkiler(ax, model, reactions)
+    ciz_mafsallar(ax, model)
     ciz_eksenel_yukler(ax, model)
     _ciz_legend(ax, model, reactions)
+
+
+def ciz_mafsallar(ax, model):
+    """İç mafsalları kiriş ekseni üzerinde içi boş daire olarak çiz (Gerber).
+
+    Standart statik gösterimi: mafsal, birleşen iki elemanın moment aktarmadığı
+    noktada içi boş küçük bir daire. PyCBA'nın çizicisi mafsalı bilmediği için
+    (eletype yalnız hesapta kullanılır) burada eklenir. Daire yarıçapı eksen
+    ölçeğinden bağımsız olsun diye nokta (markersize) olarak çizilir.
+    """
+    if not getattr(model, "hinges", None):
+        return
+    node_x = np.concatenate([[0.0], np.cumsum(model.spans)])
+    for h in model.hinges:
+        ax.plot(
+            float(node_x[h - 1]), 0.0, marker="o", markersize=8,
+            markerfacecolor="white", markeredgecolor="black",
+            markeredgewidth=1.4, zorder=6, clip_on=False,
+        )
 
 
 def _ciz_legend(ax, model, reactions):

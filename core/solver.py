@@ -71,6 +71,17 @@ def solve(model: BeamModel) -> dict:
 
     Kararsız/çözülemez sistemde SolverError fırlatır.
     """
+    # Mekanizma ön-kontrolü: mafsal eklendikçe sistem kolayca hipostatik olur ve
+    # PyCBA'dan gelen tekil-matris hatası kullanıcıya nedeni anlatmaz. Derece
+    # sayımı (bkz. BeamModel.static_degree) mekanizmayı isabetli bir mesajla
+    # yakalar; yetersiz kaldığı düzenleri aşağıdaki LinAlgError yine tutar.
+    derece = model.static_degree()
+    if derece < 0:
+        raise SolverError(
+            f"Sistem kararsız (mekanizma): statik belirsizlik derecesi {derece}. "
+            f"{len(model.hinges)} mafsal için mesnet tepkisi yetersiz — mafsal "
+            "sayısını azaltın ya da mesnet ekleyin/güçlendirin."
+        )
     try:
         ba = cba.BeamAnalysis(**model.to_pycba())
         ba.analyze()

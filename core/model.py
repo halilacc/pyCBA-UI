@@ -114,12 +114,15 @@ class BeamModel:
     EI       : her açıklığın eğilme rijitliği [kNm²], N eleman
     supports : her düğümün mesnet tipi (SUPPORT_TYPES), N+1 eleman
     loads    : yük listesi
+    hinges   : iç mafsallı düğüm no'ları (1-tabanlı, yalnız ara düğümler) —
+               Gerber kirişi; boş liste = tam sürekli kiriş
     """
 
     spans: List[float]
     EI: List[float]
     supports: List[str]
     loads: List[Load] = field(default_factory=list)
+    hinges: List[int] = field(default_factory=list)
 
     @property
     def n_spans(self) -> int:
@@ -150,6 +153,18 @@ class BeamModel:
         for s in self.supports:
             if s not in SUPPORT_TYPES:
                 errors.append(f"Bilinmeyen mesnet tipi: {s!r}")
+        # Mafsal yalnız ARA düğüme konur: uç düğümde tek eleman vardır, orada
+        # "mafsal" zaten mesnet tipinin (pin/roller) işidir.
+        gorulen = set()
+        for h in self.hinges:
+            if not (2 <= h <= self.n_nodes - 1):
+                errors.append(
+                    f"Mafsal düğüm no {h} geçersiz: yalnız ara düğümlere "
+                    f"(2..{self.n_nodes - 1}) mafsal konabilir."
+                )
+            elif h in gorulen:
+                errors.append(f"Düğüm {h} birden fazla kez mafsal olarak verildi.")
+            gorulen.add(h)
         for i, ld in enumerate(self.loads, start=1):
             if ld.kind not in LOAD_TYPES:
                 errors.append(f"Yük {i}: bilinmeyen tip {ld.kind!r}")
@@ -171,6 +186,38 @@ class BeamModel:
                     errors.append(f"Yük {i}: {pos_err}")
         return errors
 
+    def eletypes(self) -> List[int]:
+        """Mafsal listesini PyCBA `eletype` koduna çevir (açıklık başına 1 kod).
+
+        PyCBA'da mafsal düğüme değil ELEMANA konur: bir iç mafsalda birleşen iki
+        elemandan **yalnız biri** moment salıverir (pycba.MemberType docstring).
+        Kural: mafsal her zaman SAĞDAKİ elemanın sol ucuna verilir — böylece her
+        açıklık en fazla bir salıverme alır ve kod tekilleşir:
+            FF (1) = iki ucu sürekli, PF (3) = sol ucu mafsallı.
+        Açıklık i'nin (1-tabanlı) sol düğümü i olduğundan, düğüm i mafsallıysa
+        açıklık i PF olur. Düğüm 1'e mafsal konamadığı için ilk açıklık hep FF'dir.
+        """
+        h = set(self.hinges)
+        return [3 if i in h else 1 for i in range(1, self.n_spans + 1)]
+
+    def static_degree(self) -> int:
+        """Eğilme sisteminin statik belirsizlik derecesini döndür.
+
+        Kiriş, mafsallarda h+1 rijit parçaya ayrılır. Düzlemde düşey yükleme
+        için parça başına 2 denge denklemi (ΣFy, ΣM) vardır; bilinmeyenler
+        mesnet tepki bileşenleri (pin/roller 1, ankastre 2, serbest 0) ile her
+        mafsalın aktardığı kesme kuvvetidir (h adet). Buradan:
+
+            derece = r + h - 2(h + 1) = r - h - 2
+
+        > 0 hiperstatik, = 0 izostatik, < 0 mekanizma (kararsız).
+        PyCBA yatay DOF tutmadığı için bu sayım yalnız eğilme sistemini kapsar;
+        eksenel sistem `core/axial.py`'de ayrı denetlenir.
+        """
+        r = sum({"pin": 1, "roller": 1, "fixed": 2, "free": 0}.get(s, 0)
+                for s in self.supports)
+        return r - len(self.hinges) - 2
+
     def to_pycba(self) -> dict:
         """`BeamAnalysis(**model.to_pycba())` ile doğrudan kullanılabilir sözlük."""
         errors = self.validate()
@@ -184,4 +231,5 @@ class BeamModel:
             "EI": list(self.EI),
             "supports": list(self.supports),
             "LM": lm or None,
+            "eletype": self.eletypes(),
         }
