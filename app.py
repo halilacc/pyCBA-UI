@@ -222,7 +222,7 @@ with st.sidebar:
                     f"{label} [{unit}]", value=None, placeholder="0", key=key, **kw
                 )
             )
-        submitted = st.form_submit_button("➕ Yük ekle", width="stretch", type="primary")
+        submitted = st.form_submit_button("➕ Yük ekle", width="stretch")
     # Boş bırakılan (None) alanları 0.0 kabul et — doğrulama/çözüm float bekler.
     values = [0.0 if v is None else v for v in values]
     if submitted:
