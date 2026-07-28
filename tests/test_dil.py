@@ -92,7 +92,8 @@ def test_ceviriler_gercekten_farkli():
     liste büyüdükçe testin değeri düşer.
     """
     muaf = {"csv.x", "csv.moment", "param.M", "yuk.moment", "panel.moment",
-            "gorunum.M", "kart.konum", "kart.min", "buyukluk.moment"}
+            "gorunum.M", "kart.konum", "kart.min", "kart.min_baslik",
+            "buyukluk.moment"}
     ayni = [
         k for k, v in ui_dil.METINLER["tr"].items()
         if k not in muaf and v == ui_dil.METINLER["en"][k]

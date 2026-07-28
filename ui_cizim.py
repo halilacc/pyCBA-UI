@@ -64,6 +64,13 @@ def ciz_sema(ax, model, reactions=None, dil=None):
         )
     ]
     bp.render_mpl(ax=ax, dimensions=True, load_values=True)
+    # PyCBA eksen etiketini İngilizce yazar ("Distance along beam (m)");
+    # Türkçe arayüzde İngilizce kalmasın diye katalogdan yeniden yazılır.
+    if ax.get_xlabel():
+        ax.set_xlabel(cevir(dil, "sema.eksen_x"))
+    # Figür yüksekliği sabit (app.py 2.6/3.4 in); varsayılan bottom=0.11'de eksen
+    # etiketi figür kenarında kırpılıyor. Legend varsa üst boşluğu _ciz_legend açar.
+    ax.get_figure().subplots_adjust(bottom=0.20)
     if reactions:
         # BeamPlotter 0-tabanlı ve GENİŞLETİLMİŞ düğüm dizisiyle çalışır; bu
         # yüzden "node" (kullanıcı numarası) değil "node_expanded" kullanılır.
@@ -93,9 +100,9 @@ def _ciz_legend(ax, model, reactions, dil=None):
     """
     girisler = []
     if any(ld.kind not in AXIAL_KINDS for ld in model.loads):
-        girisler.append(("tab:red", cevir(dil, "sema.legend.dusey")))
+        girisler.append(("tab:red", "v", cevir(dil, "sema.legend.dusey")))
     if any(ld.kind in AXIAL_KINDS for ld in model.loads):
-        girisler.append((EKSENEL_YUK_MAVISI, cevir(dil, "sema.legend.eksenel")))
+        girisler.append((EKSENEL_YUK_MAVISI, ">", cevir(dil, "sema.legend.eksenel")))
     tepki_var = bool(reactions) and any(
         (r.get("V") and abs(r["V"]) > 1e-6)
         or (r.get("M") and abs(r["M"]) > 1e-6)
@@ -103,14 +110,21 @@ def _ciz_legend(ax, model, reactions, dil=None):
         for r in reactions
     )
     if tepki_var:
-        girisler.append((NORMAL_KUVVET_YESILI, cevir(dil, "sema.legend.tepki")))
+        girisler.append((NORMAL_KUVVET_YESILI, "^", cevir(dil, "sema.legend.tepki")))
     if not girisler:
         return
+    # Glif renkten BAĞIMSIZ ikinci bir ayırt edicidir: kırmızı (düşey yük) ile
+    # yeşil (tepki) deutan görüşte ayrışmıyor (ΔE 3.9, eşik 6). Glifler şemadaki
+    # ok yönleriyle eşleşir — yük aşağı (v), tepki yukarı (^), eksenel yatay (>).
     handles = [
-        Line2D([], [], color=c, lw=2.2, marker=">", markersize=7, label=ad)
-        for c, ad in girisler
+        Line2D([], [], color=c, lw=2.2, marker=m, markersize=7, label=ad)
+        for c, m, ad in girisler
     ]
-    ax.legend(handles=handles, loc="lower right", fontsize=8, framealpha=0.9)
+    # Legend eksenin DIŞINDA, üstte yatay durur: "lower right" içeride sağdaki
+    # mesnet tepki etiketinin üstüne biniyordu.
+    ax.get_figure().subplots_adjust(top=0.80)
+    ax.legend(handles=handles, loc="lower center", bbox_to_anchor=(0.5, 1.01),
+              ncols=len(handles), fontsize=8, frameon=False)
 
 
 def ciz_eksenel_yukler(ax, model):
@@ -159,7 +173,9 @@ def ciz_yatay_tepkiler(ax, model, reactions):
     y0, y1 = ax.get_ylim()
     dy = y1 - y0
     alen = 0.05 * total_L
-    y = -0.05 * dy
+    # Mesnet harfleri (A, B, …) kiriş ekseninin hemen altında duruyor; ok satırı
+    # onların altına indirilir, yoksa A mesnedinde etiket harfin üstüne biniyor.
+    y = -0.10 * dy
     for r in reactions:
         H = r.get("H")
         if H is None or abs(H) < 1e-6:
@@ -170,6 +186,9 @@ def ciz_yatay_tepkiler(ax, model, reactions):
                     arrowprops=dict(arrowstyle="-|>", color=NORMAL_KUVVET_YESILI,
                                     lw=2, mutation_scale=16))
         # Etiket ok ucunun ötesinde — mesnet glifinin üzerine binmesin.
-        ax.text(x + sgn * alen * 1.15, y, f"{abs(H):g} kN",
+        # HESAPLANAN tepki: PyCBA'nın düşey tepki etiketleriyle aynı hassasiyet
+        # (2 hane). ":g" burada "33.3333 kN" gibi okunmaz sayılar üretiyordu.
+        # Uygulanan yüklerde ":g" korunur — onlar kullanıcının girdiği tam sayılar.
+        ax.text(x + sgn * alen * 1.15, y, f"{abs(H):.2f} kN",
                 color=NORMAL_KUVVET_YESILI, ha="left" if sgn > 0 else "right",
                 va="center", fontsize=9)

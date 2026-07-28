@@ -509,6 +509,24 @@ label, [data-testid="stWidgetLabel"] *, [data-testid="stCaptionContainer"], [dat
   background-color: var(--pc-surface) !important;
 }
 [data-testid="stExpander"] summary, [data-testid="stExpander"] summary * { color: var(--pc-ink) !important; }
+/* `help=` ipuçları. Açılır listeler gibi portal ile <body> altına basılır, bu
+   yüzden app kapsayıcısını hedefleyen kurallar ulaşmaz. Ölçülen açık tema
+   değerleri: zemin rgb(243,242,239) = #F3F2EF; yazı ise genel markdown
+   kuralından --pc-ink (rgb(233,231,226)) alıyordu — açık üstüne açık, kontrast
+   1.05:1, ipucu tamamen kayboluyordu. Testid'ler Streamlit 1.59 paketinden
+   doğrulandı (stTooltipContent / stTooltipIcon). */
+[data-testid="stTooltipContent"], [data-baseweb="tooltip"] {
+  background-color: var(--pc-surface2) !important;
+  border: 1px solid var(--pc-line) !important;
+}
+[data-testid="stTooltipContent"], [data-testid="stTooltipContent"] *,
+[data-baseweb="tooltip"], [data-baseweb="tooltip"] * {
+  color: var(--pc-ink) !important;
+}
+/* Yardım ikonunun kendisi: şekil path'i boyanmadığı için ekranda sönük bir
+   nokta kalıyordu — selectbox okundaki `path:not([fill="none"])` deseni. */
+[data-testid="stTooltipIcon"] svg { color: var(--pc-muted) !important; }
+[data-testid="stTooltipIcon"] svg path:not([fill="none"]) { fill: currentColor !important; }
 </style>"""
 
 

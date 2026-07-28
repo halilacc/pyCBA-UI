@@ -125,6 +125,7 @@ _TR = {
 
     # --- şema / sonuçlar ---
     "sema.baslik": "Kiriş şeması",
+    "sema.eksen_x": "Kiriş boyunca uzaklık [m]",
     "sema.legend.dusey": "Düşey yük",
     "sema.legend.eksenel": "Eksenel yük",
     "sema.legend.tepki": "Mesnet tepkisi",
@@ -138,9 +139,14 @@ _TR = {
                 "sonuçlar bundan etkilenmez.",
 
     # metrik kartları
+    # Kart başlığı, gösterilen ekstreme göre seçilir (bkz. app._kart):
+    # yöneten maks ise "kart.maks", min ise "kart.min_baslik". Caption'daki
+    # ikinci satır da buna göre "kart.min" ya da "kart.maks_alt" olur.
     "kart.maks": "Maks. {ad} [{birim}]",
+    "kart.min_baslik": "Min. {ad} [{birim}]",
     "kart.konum": "@ x = {x:.2f} m",
     "kart.min": "Min. {deger} @ x = {x:.2f} m",
+    "kart.maks_alt": "Maks. {deger} @ x = {x:.2f} m",
     "buyukluk.moment": "moment",
     "buyukluk.kesme": "kesme",
     "buyukluk.sehim": "sehim",
@@ -273,6 +279,7 @@ _EN = {
     "liste.sil": "🗑️ Delete",
 
     "sema.baslik": "Beam schematic",
+    "sema.eksen_x": "Distance along beam [m]",
     "sema.legend.dusey": "Vertical load",
     "sema.legend.eksenel": "Axial load",
     "sema.legend.tepki": "Support reaction",
@@ -287,8 +294,10 @@ _EN = {
                 "vertical results are unaffected.",
 
     "kart.maks": "Max. {ad} [{birim}]",
+    "kart.min_baslik": "Min. {ad} [{birim}]",
     "kart.konum": "@ x = {x:.2f} m",
     "kart.min": "Min. {deger} @ x = {x:.2f} m",
+    "kart.maks_alt": "Max. {deger} @ x = {x:.2f} m",
     "buyukluk.moment": "moment",
     "buyukluk.kesme": "shear",
     "buyukluk.sehim": "deflection",

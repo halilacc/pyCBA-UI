@@ -268,17 +268,30 @@ else:
         baslik = t("liste.satir", i=i + 1, ad=t(f"yuk.{ld.kind}"),
                    sp=ld.span, ayrinti=desc)
         with st.expander(baslik):
-            with st.form(f"duzenle_form_{sig}"):
-                new_span = int(
-                    st.number_input(
-                        t("aciklik_no"), min_value=1, max_value=n_spans,
-                        value=ld.span, step=1, key=f"edit_span_{sig}",
-                    )
+            # Açıklık seçimi form DIŞINDA (ekleme formundaki desenin aynısı).
+            # Form İÇİNDE olduğunda değişiklik ancak gönderimde işleniyor, o
+            # rerun'da konum widget'ı (key'i new_span'e bağlı) yeni açıklığa göre
+            # sıfırdan kuruluyor ve kullanıcının aynı gönderimde yazdığı konum
+            # sessizce yutuluyordu. Dışarıda değişiklik anında rerun tetikler:
+            # konum alanları yeni L ile kurulur, sonra kaydedilir.
+            #
+            # Açıklık sayısı küçültülmüşse yükün açıklığı artık max_value'yu
+            # aşıyor olabilir; Streamlit bu durumda istisna fırlatır ve kullanıcı
+            # hata mesajı yerine traceback görür. Widget'ı sınıra çekiyoruz —
+            # yük silinmiyor: model doğrulaması "açıklık no geçersiz" diye uyarır,
+            # kullanıcı buradan düzeltip kaydeder ya da siler. (Mafsallarda aynı
+            # durum satır 153'te temizlenir; yükte sessiz silme veri kaybı olurdu.)
+            new_span = int(
+                st.number_input(
+                    t("aciklik_no"), min_value=1, max_value=n_spans,
+                    value=min(ld.span, n_spans), step=1,
+                    key=f"edit_span_{sig}",
                 )
+            )
+            # Konum sınırı seçili açıklığın L'sine bağlı (ekleme formuyla aynı).
+            L_edit = float(spans[new_span - 1])
+            with st.form(f"duzenle_form_{sig}"):
                 new_values = []
-                # Konum sınırı seçili açıklığın L'sine bağlı (ekleme formuyla aynı
-                # canlı clamp); açıklık değişince max_value de anında güncellenir.
-                L_edit = float(spans[new_span - 1])
                 for j, p in enumerate(params):
                     label, unit = t(f"param.{p}"), PARAM_UNITS[p]
                     if p in ("a", "c"):
@@ -378,10 +391,11 @@ if result["ea_uyari"]:
 # Metrik kartları görünüm toggle'larından etkilenmez: sayısal özet kompakttır ve
 # grafiği kapatan kullanıcı da ekstrem değerleri görmek ister.
 
-# Tutarlılık için her büyüklükte işaretli maks + min gösterilir (yalnız mutlak
-# değil): negatif ekstremler mühendislik açısından da anlamlıdır (örn. mesnet
-# üstü negatif moment). Büyük sayı maks; caption'da ekstremlerin kiriş üzerindeki
-# konumu (x) da verilir — argmax/argmin saf sunum hesabı, core değişmez.
+# Her büyüklükte işaretli maks + min gösterilir (yalnız mutlak değil): negatif
+# ekstremler mühendislik açısından da anlamlıdır (örn. mesnet üstü negatif
+# moment). Büyük rakam mutlak değerce YÖNETEN ekstremdir, işaretiyle; diğeri
+# caption'da kalır. Caption ayrıca ekstremlerin kiriş üzerindeki konumunu (x)
+# verir — argmax/argmin saf sunum hesabı, core değişmez.
 def _ekstrem_konum(x_arr, y_arr, en_buyuk):
     """Ekstremin (maks/min) apsis konumunu [m] döndür."""
     idx = int(y_arr.argmax() if en_buyuk else y_arr.argmin())
@@ -397,13 +411,27 @@ def _biciml(v, olcek=1.0):
     return f"{round(v * olcek, 2) + 0.0:.2f}"
 
 def _kart(col, buyukluk, birim, xd, yd, olcek=1.0):
+    """Kartı çiz: büyük rakam mutlak değerce yöneten ekstrem, diğeri caption'da.
+
+    Önceden büyük rakam HER ZAMAN maks'tı; basit kirişte sehim maksimumu 0.00
+    olduğu için kart "Maks. sehim 0.00" yazıyor, asıl −11.25 mm küçük caption'a
+    düşüyordu (kesmede de 52.50 gösterilip yöneten 67.50 alta iniyordu). Kesit
+    tahkikinde yöneten mutlak değerce büyük olandır; başlık hangi ekstremin
+    gösterildiğini söyler ("Maks." / "Min.").
+    """
     vmaks, vmin = float(yd.max()), float(yd.min())
-    col.metric(t("kart.maks", ad=t(f"buyukluk.{buyukluk}"), birim=birim),
-               _biciml(vmaks, olcek))
+    x_maks, x_min = _ekstrem_konum(xd, yd, True), _ekstrem_konum(xd, yd, False)
+    if abs(vmaks) >= abs(vmin):
+        baslik, deger, x_dom = "kart.maks", vmaks, x_maks
+        alt, alt_deger, x_alt = "kart.min", vmin, x_min
+    else:
+        baslik, deger, x_dom = "kart.min_baslik", vmin, x_min
+        alt, alt_deger, x_alt = "kart.maks_alt", vmaks, x_maks
+    col.metric(t(baslik, ad=t(f"buyukluk.{buyukluk}"), birim=birim),
+               _biciml(deger, olcek))
     col.caption(
-        t("kart.konum", x=_ekstrem_konum(xd, yd, True)) + "  \n"
-        + t("kart.min", deger=_biciml(vmin, olcek),
-            x=_ekstrem_konum(xd, yd, False))
+        t("kart.konum", x=x_dom) + "  \n"
+        + t(alt, deger=_biciml(alt_deger, olcek), x=x_alt)
     )
 
 def _diyagram_csv(basliklar, *diziler):
@@ -540,8 +568,14 @@ else:
     fig.update_xaxes(title_text=t("diyagram.eksen_x"), row=n_panel, col=1)
     # fixedrange=True: dokunmatik ekranda grafik zoom/pan/pinch yapmaz — parmak
     # hareketi sayfayı kaydırır, grafiği değil. Hover ipuçları çalışmaya devam eder.
-    fig.update_xaxes(gridcolor=_g_izgara, zerolinecolor=_g_sifir, linecolor=_g_izgara, fixedrange=True)
-    fig.update_yaxes(gridcolor=_g_izgara, zerolinecolor=_g_sifir, fixedrange=True)
+    # tickfont/title_font AÇIKÇA verilir: Streamlit'in plotly şablonu eksen
+    # yazılarını rgb(128,132,149) yapar ve layout `font=` bunu EZMEZ — ölçülen
+    # kontrast her iki modda da AA altında (≈3.8:1 / 4.2:1) kalıyordu.
+    _eksen_yazi = dict(tickfont=dict(color=_g_yazi), title_font=dict(color=_g_yazi))
+    fig.update_xaxes(gridcolor=_g_izgara, zerolinecolor=_g_sifir, linecolor=_g_izgara,
+                     fixedrange=True, **_eksen_yazi)
+    fig.update_yaxes(gridcolor=_g_izgara, zerolinecolor=_g_sifir, fixedrange=True,
+                     **_eksen_yazi)
     fig.update_layout(
         # Başlık rengi açıkça verilir; aksi halde Streamlit'in plotly şablonu koyu
         # bırakıp gece modunda okunmaz kılıyordu.
