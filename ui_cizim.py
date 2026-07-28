@@ -109,7 +109,7 @@ def _ciz_legend(ax, model, reactions):
         Line2D([], [], color=c, lw=2.2, marker=">", markersize=7, label=ad)
         for c, ad in girisler
     ]
-    ax.legend(handles=handles, loc="upper right", fontsize=8, framealpha=0.9)
+    ax.legend(handles=handles, loc="lower right", fontsize=8, framealpha=0.9)
 
 
 def ciz_eksenel_yukler(ax, model):

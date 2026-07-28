@@ -17,6 +17,8 @@ sabittir ve bu değişkenleri kullanır. Grafikler/şema her iki modda okunur ka
 Giriş (fade-up) animasyonu yalnız oturumun ilk yüklemesinde oynatılır.
 """
 
+import time
+
 import streamlit as st
 
 # --- Moda göre CSS değişkenleri --------------------------------------------
@@ -82,7 +84,11 @@ h1, h2, h3, [data-testid="stMetricValue"],
 }
 
 /* --- Hero başlık --- */
-.pc-hero { margin: 0.2rem 0 1.3rem; padding-bottom: 1.1rem; border-bottom: 1px solid var(--pc-line); }
+.pc-hero {
+  margin: 0.2rem 0 1.3rem; padding-bottom: 1.1rem; border-bottom: 1px solid var(--pc-line);
+  display: flex; align-items: center; gap: 1.8rem;
+}
+.pc-hero__metin { flex: 1 1 auto; min-width: 0; }
 .pc-hero__eyebrow {
   display: inline-flex; align-items: center; gap: 0.6ch; font-size: 0.72rem; font-weight: 600;
   text-transform: uppercase; letter-spacing: 0.16em; color: var(--pc-acc); margin-bottom: 0.55rem;
@@ -102,6 +108,33 @@ h1, h2, h3, [data-testid="stMetricValue"],
   margin-top: 0.9rem; height: 3px; width: 84px; border-radius: 3px; transform-origin: left center;
   background: linear-gradient(90deg, var(--pc-acc), var(--pc-acc2));
 }
+
+/* --- Hero görseli: yük altında iki açıklıklı sürekli kiriş --------------
+   Jenerik bir arkaplan efekti yerine konunun kendisi çizilir. Şema ders
+   kitabı düzenidir: düz çizgi = şekil değiştirmemiş eksen, kesikli eğri =
+   sehim. Bu yüzden kiriş çizgisi SABİT kalır; yalnız yük ve sehim eğrisi
+   nefes alır — animasyon "süs" değil, statik davranışın kendisi.
+   Yalnız transform animasyonu (bu modülün ilkesi); SVG şeması `_kiris_svg`
+   içinde Python ile üretilir, ölçüler oradaki sabitlere bağlıdır. */
+.pc-hero__gorsel { flex: 0 0 auto; width: 260px; }
+.pc-beam { display: block; width: 100%; height: auto; }
+.pc-beam__kiris { stroke: var(--pc-ink); stroke-width: 2.4; fill: none; stroke-linecap: round; }
+.pc-beam__mesnet { fill: var(--pc-muted); }
+.pc-beam__zemin { stroke: var(--pc-muted); stroke-width: 1.4; }
+.pc-beam__yuk { stroke: var(--pc-acc); fill: var(--pc-acc); stroke-width: 1.2; }
+.pc-beam__sehim {
+  stroke: var(--pc-acc2); stroke-width: 1.8; fill: none; stroke-dasharray: 4.5 3.5;
+  /* Eğrinin sınır kutusunun ÜST kenarı kiriş kotudur (uç noktalar orada);
+     oradan ölçeklenince mesnetler sabit kalır, yalnız sarkma derinleşir. */
+  transform-box: fill-box; transform-origin: top;
+}
+/* Ortak ritim: yük bastıkça sehim derinleşir. `alternate` ile gidiş-dönüş
+   sürekli olur; --pc-ease (expo-out) burada YANLIŞ olur — o tek yönlü bir
+   varış eğrisi; nefes alan bir döngüde iki uçta da yumuşama gerekir. */
+.pc-beam__yuk { animation: pcYukBas 3.4s ease-in-out infinite alternate; }
+.pc-beam__sehim { animation: pcSehim 3.4s ease-in-out infinite alternate; }
+@keyframes pcYukBas { from { transform: translateY(0); } to { transform: translateY(3px); } }
+@keyframes pcSehim { from { transform: scaleY(0.16); } to { transform: scaleY(1); } }
 
 /* --- Bölüm başlıkları — aksan çubuğu --- */
 [data-testid="stMainBlockContainer"] h3 { position: relative; padding-left: 0.8rem; font-weight: 600; }
@@ -276,6 +309,9 @@ h1, h2, h3, [data-testid="stMetricValue"],
 @media (max-width: 640px) {
   .pc-hero__title { font-size: 1.55rem; }
   .pc-hero__sub { font-size: 0.92rem; }
+  /* Şema dar ekranda başlığı ezer; hover efektleri gibi mobilde kapatılır. */
+  .pc-hero { display: block; }
+  .pc-hero__gorsel { display: none; }
   [data-testid="stMainBlockContainer"] { padding-left: 0.8rem !important; padding-right: 0.8rem !important; }
   [data-testid="stMetric"] { padding: 0.75rem 0.85rem; }
   [data-testid="stMetricValue"] { font-size: 1.3rem !important; }
@@ -298,6 +334,8 @@ h1, h2, h3, [data-testid="stMetricValue"],
   /* Specular kenar KALIR ama dönmez: statik bir kenar vurgusu hareket değildir,
      butonun etkileşilebilir olduğunu göstermeye devam eder. */
   [data-testid="stFormSubmitButton"] button:hover::before { animation-play-state: paused !important; }
+  /* Hero şeması KALIR, donar: tam sarkmış haliyle okunur bir statik şemadır. */
+  .pc-beam__yuk, .pc-beam__sehim { animation: none !important; }
 }
 </style>"""
 
@@ -457,14 +495,70 @@ def enjekte_tema(mod: str = "aydinlik"):
         st.markdown(_GIRIS_CSS, unsafe_allow_html=True)
 
 
+# Hero şemasının geometrisi (SVG kullanıcı birimi). Mesnet x'leri ve kiriş
+# kotu; CSS'teki animasyon bunlara değil, sınır kutusuna göre çalışır.
+_HERO_A, _HERO_B, _HERO_C, _HERO_Y = 24.0, 130.0, 236.0, 46.0
+# CSS'teki `animation-duration` ile AYNI olmalı (bkz. pcYukBas/pcSehim).
+# `alternate` olduğu için tam tur = gidiş + dönüş = 2×süre.
+_HERO_SURE = 3.4
+
+
+def _kiris_svg() -> str:
+    """Hero görseli: iki açıklıklı sürekli kiriş şeması (yayılı yük + sehim).
+
+    Sehim eğrisi gerçek biçimi taklit eder: simetrik iki açıklıkta orta
+    mesnette teğet YATAY olur, bu yüzden B'ye komşu kontrol noktaları kiriş
+    kotundadır (aksi halde orta mesnette gerçekte olmayan bir kırık görünür).
+    """
+    a, b, c, y = _HERO_A, _HERO_B, _HERO_C, _HERO_Y
+    # Streamlit her rerun'da markdown düğümünü yeniden kurar; CSS animasyonu da
+    # sıfırdan başlar ve döngü görünür biçimde zıplar (tarayıcıda görüldü).
+    # Çözüm: fazı duvar saatinden türet ve NEGATİF animation-delay ile ilerisine
+    # sar. Eleman yeni doğsa bile aynı ana denk gelir, yani süreklilik korunur.
+    # Sunucu-istemci gecikmesi kadar sapar (~ms); 6.8 s'lik turda görünmez.
+    faz = f'style="animation-delay:{-(time.time() % (2 * _HERO_SURE)):.2f}s"'
+    # Yayılı yük: üst bant + eşit aralıklı oklar (uçları da dahil).
+    n = 11
+    oklar = [f'<line x1="{a}" y1="17" x2="{c}" y2="17" />']
+    for i in range(n + 1):
+        x = round(a + i * (c - a) / n, 2)
+        oklar.append(f'<line x1="{x}" y1="17" x2="{x}" y2="37.5" />')
+        oklar.append(
+            f'<polygon points="{x - 2.6},36 {x + 2.6},36 {x},41.5" stroke="none" />'
+        )
+    mesnetler = "".join(
+        f'<polygon class="pc-beam__mesnet" '
+        f'points="{x},{y} {x - 7},{y + 13} {x + 7},{y + 13}" />'
+        f'<line class="pc-beam__zemin" '
+        f'x1="{x - 11}" y1="{y + 14.5}" x2="{x + 11}" y2="{y + 14.5}" />'
+        for x in (a, b, c)
+    )
+    sehim = (
+        f'M{a} {y} C{a + 32} {y + 36} {b - 22} {y} {b} {y} '
+        f'C{b + 22} {y} {c - 32} {y + 36} {c} {y}'
+    )
+    return (
+        '<svg class="pc-beam" viewBox="6 8 248 56" role="img" '
+        'aria-label="İki açıklıklı sürekli kiriş: yayılı yük altında sehim">'
+        f'<g class="pc-beam__yuk" stroke-linecap="round" {faz}>{"".join(oklar)}</g>'
+        f'{mesnetler}'
+        f'<line class="pc-beam__kiris" x1="{a}" y1="{y}" x2="{c}" y2="{y}" />'
+        f'<path class="pc-beam__sehim" d="{sehim}" {faz} />'
+        "</svg>"
+    )
+
+
 def hero_baslik(baslik: str, altyazi: str, eyebrow: str = "Yapı statiği · sürekli kiriş"):
     """st.title yerine animasyonlu, gradyan-aksanlı hero başlık bloğu çiz."""
     st.markdown(
         f'<div class="pc-hero">'
+        f'<div class="pc-hero__metin">'
         f'<div class="pc-hero__eyebrow">{eyebrow}</div>'
         f'<h1 class="pc-hero__title">{baslik}</h1>'
         f'<p class="pc-hero__sub">{altyazi}</p>'
         f'<div class="pc-hero__line"></div>'
+        f'</div>'
+        f'<div class="pc-hero__gorsel">{_kiris_svg()}</div>'
         f'</div>',
         unsafe_allow_html=True,
     )

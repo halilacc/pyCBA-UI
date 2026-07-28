@@ -6,6 +6,7 @@ Yalnızca sunum katmanı: model kurulumu ve çözüm `core/` paketindedir.
 """
 
 import matplotlib.pyplot as plt
+import numpy as np
 import plotly.graph_objects as go
 import streamlit as st
 from plotly.subplots import make_subplots
@@ -471,6 +472,68 @@ else:
         fig.update_yaxes(title_text=f"{ad} [{birim}]", row=i, col=1)
         if ters:  # moment: sagging-pozitif aşağıda (PyCBA konvansiyonu korunur)
             fig.update_yaxes(autorange="reversed", row=i, col=1)
+
+    # --- Mesnet çizgileri: diyagramı kirişle hizalar -------------------------
+    # Harfler ŞEMAYLA aynı kuralla üretilir (bkz. ui_cizim.ciz_sema): "free"
+    # düğümler atlanır, çizilen mesnetler sıfırdan sırayla harflenir. İki görsel
+    # farklı harf gösterirse tepki tablosuyla eşleştirme bozulur.
+    # Izgaradan belirgin, kiriş çizgisinden silik: yapı ipucu, veri değil.
+    _g_mesnet = "rgba(255,255,255,0.22)" if karanlik else "rgba(28,27,25,0.18)"
+    _node_x = np.concatenate([[0.0], np.cumsum(model.spans)])
+    for sira, (idx_node, _tip) in enumerate(
+        (j, s) for j, s in enumerate(model.supports) if s != "free"
+    ):
+        x_m = float(_node_x[idx_node])
+        fig.add_vline(x=x_m, line=dict(color=_g_mesnet, width=1, dash="dot"),
+                      row="all", col=1)
+        fig.add_annotation(
+            x=x_m, y=1.0, yref="y domain", yanchor="bottom", yshift=2,
+            text=chr(ord("A") + sira), showarrow=False,
+            font=dict(color=_g_yazi, size=11), row=1, col=1,
+        )
+
+    # --- Ekstrem işaretleri --------------------------------------------------
+    # Metrik kartları ekstrem DEĞERİ veriyor ama konumunu vermiyor; işaretçi
+    # "nerede" sorusunu cevaplar. Konum dizilerden okunur — tümü sunum işi,
+    # core dokunulmaz.
+    _g_halka = "#1E2028" if karanlik else "#FFFFFF"
+    for i, (ad, birim, xr, yr, renk, _dolgu, ters) in enumerate(paneller, start=1):
+        olcek = float(np.max(np.abs(yr)))
+        if olcek < 1e-9:  # düz sıfır diyagram: işaretlenecek uç yok
+            continue
+        boy = float(xr[-1]) or 1.0
+        gorulen = set()
+        for idx, ust in ((int(np.argmax(yr)), True), (int(np.argmin(yr)), False)):
+            deger = float(yr[idx])
+            # Tek işaretli diyagramlarda "diğer" uç sıfırdadır ve bilgi taşımaz;
+            # aynı nokta iki kez de işaretlenmemeli (sabit diyagram).
+            if idx in gorulen or abs(deger) < 0.02 * olcek:
+                continue
+            gorulen.add(idx)
+            x_e = float(xr[idx])
+            fig.add_trace(
+                go.Scatter(
+                    x=[x_e], y=[deger], mode="markers", showlegend=False,
+                    marker=dict(color=renk, size=8,
+                                line=dict(color=_g_halka, width=1.6)),
+                    hoverinfo="skip",  # eğrinin kendi ipucu yeter, ikilenmesin
+                ),
+                row=i, col=1,
+            )
+            fig.add_annotation(
+                x=x_e, y=deger, text=f"{deger:.4g} {birim} · {x_e:.2f} m",
+                showarrow=False,
+                # yshift EKRAN pikselidir: moment panelinde y ekseni ters olduğu
+                # için veri uzayındaki "üst" ekranda alta düşer, yön de terslenir.
+                yshift=(16 if ust else -16) * (-1 if ters else 1),
+                # Uçlardaki etiket panel dışına taşıp kırpılmasın diye yaslanır.
+                xanchor="left" if x_e < 0.12 * boy else
+                        ("right" if x_e > 0.88 * boy else "center"),
+                font=dict(color=_g_yazi, size=10),
+                bgcolor=_g_halka, borderpad=2, opacity=0.92,
+                row=i, col=1,
+            )
+
     fig.update_xaxes(title_text="Kiriş boyunca konum [m]", row=n_panel, col=1)
     # fixedrange=True: dokunmatik ekranda grafik zoom/pan/pinch yapmaz — parmak
     # hareketi sayfayı kaydırır, grafiği değil. Hover ipuçları çalışmaya devam eder.
