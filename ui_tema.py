@@ -356,6 +356,15 @@ _GECE_CSS = """<style>
 [data-testid="stMainMenuButton"] {
   filter: invert(1) brightness(1.5) !important;
 }
+/* Deploy butonu. ⋮ menüsünün yanında durur ama piksel-ters çevirme AİLESİNE
+   GİRMEZ: metin taşıdığı için invert edilirse zemin de dönüp açık bir kutu
+   olurdu. Yazı rengi doğrudan verilir (ölçüm: rgb(28,27,25) — açık temanın
+   metni, şeffaf başlık üzerinde okunmuyordu). stMainMenuButton'a bu kural
+   BULAŞMAMALI; oradaki ikon zaten ters çevriliyor, üstüne açık renk verilirse
+   invert onu tekrar koyuya döndürür. */
+[data-testid="stAppDeployButton"], [data-testid="stAppDeployButton"] * {
+  color: var(--pc-ink) !important;
+}
 [data-testid="stSidebar"] { background-color: var(--pc-surface2) !important; }
 /* Genel metin */
 [data-testid="stMarkdownContainer"], [data-testid="stMarkdownContainer"] p, [data-testid="stMarkdownContainer"] li,
@@ -432,6 +441,19 @@ label, [data-testid="stWidgetLabel"] *, [data-testid="stCaptionContainer"], [dat
 [data-testid="stNumberInputStepUp"] path:not([fill="none"]),
 [data-testid="stNumberInputStepDown"] path:not([fill="none"]),
 [data-testid="stNumberInputClearButton"] path:not([fill="none"]) {
+  fill: currentColor !important;
+}
+/* Selectbox / multiselect kutusundaki açılır ok (∨) ve temizle (⊗) ikonları.
+   Bunlar kutunun İÇİNDE, `aria-label="Open"`/"Clear value" sarmalayıcılarında
+   durur ve rengini açık temadan alır (ölçüm: rgb(28,27,25) = #1C1B19), yani
+   koyu kutuda siyah kalıyordu. Ok SVG'si de temizle ikonu gibi `fill="none"`
+   olan hizalama path'i taşır — fill yine yalnız gerçek şekle verilir, yoksa
+   ok içi dolu kareye döner. */
+[data-testid="stSelectbox"] svg, [data-testid="stMultiSelect"] svg {
+  color: var(--pc-muted) !important;
+}
+[data-testid="stSelectbox"] svg path:not([fill="none"]),
+[data-testid="stMultiSelect"] svg path:not([fill="none"]) {
   fill: currentColor !important;
 }
 [data-testid="stNumberInputStepUp"]:not(:disabled) *,

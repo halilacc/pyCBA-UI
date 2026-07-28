@@ -178,7 +178,14 @@ Yaşanmış tuzaklar — tahmin etme, DOM'dan `getComputedStyle` ile ölç:
 - İkon SVG'lerine `* { fill: currentColor !important }` YAZMA: Streamlit ikonları
   şeklin önüne `fill="none"` olan 24×24 hizalama path'i koyar; `!important` onu
   da ezip ikonu içi dolu kareye çevirir (temizle ⊗ düğmesinde yaşandı). Gerekirse
-  `path:not([fill="none"])` ile kapsamı daralt.
+  `path:not([fill="none"])` ile kapsamı daralt. Selectbox açılır oku (∨) da aynı
+  yapıda — kutunun İÇİNDE, `aria-label="Open"` sarmalayıcısında durur ve genel
+  metin kurallarının kapsamına girmez.
+- `filter: invert(1)` AİLESİ yalnız ikon içindir (`stSidebarCollapseButton`,
+  `stExpandSidebarButton`, `stMainMenuButton`). Metin taşıyan bir öğeyi (örn.
+  `stAppDeployButton`) bu listeye EKLEME: zemini de döner, açık bir kutuya
+  dönüşür. Ters çevrilen bir öğeye ayrıca açık renk vermek de onu tekrar
+  koyulaştırır — ikisi bir arada kullanılmaz.
 - Emotion sınıfları (`st-emotion-cache-…`, `st-cm`) sürümle değişir; asla seçici
   olarak kullanma — testid/baseweb/öznitelik yolu kullan.
 - `ui_tema.py` içe aktarılmış modüldür: değiştirince Streamlit'i **yeniden başlat**,
