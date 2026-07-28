@@ -398,3 +398,92 @@ def test_eksenel_yuk_yokken_diyagram_sifir():
     ax = solve_axial(m)
     assert np.allclose(ax["N"], 0.0)
     assert ax["H"] == {1: 0.0, 3: 0.0}
+
+
+@pytest.mark.parametrize("EI, supports, bekleniyor", [
+    # Hiperstatik eksenel sistem (iki pin) + farklı kesit → paylaşım EA'ya bağlı.
+    ([30_000.0, 120_000.0], ["pin", "roller", "pin"], True),
+    ([30_000.0, 30_000.0], ["pin", "roller", "pin"], False),   # prizmatik: kesin
+    ([30_000.0, 120_000.0], ["pin", "roller", "roller"], False),  # izostatik: kesin
+])
+def test_ea_uyari_bayragi(EI, supports, bekleniyor):
+    """EA=1 varsayımı yalnız hiperstatik + farklı kesitte sonucu etkiler.
+
+    Çözücü bunu `ea_uyari` ile bildirir; sunum katmanı uyarıyı buna bakarak
+    gösterir. Diğer iki durumda sonuç EA'dan bağımsız kesindir, uyarı çıkmamalı.
+    """
+    m = BeamModel(spans=[6.0, 6.0], EI=EI, supports=supports,
+                  loads=[Load(1, "axial_point", [100.0, 3.0])])
+    assert solve(m)["ea_uyari"] is bekleniyor
+
+
+# ------------------------------------------------------------------ hata yolları
+def test_ara_dugumde_ankastre_mesnet():
+    """Ankastre-mafsallı kiriş: yalnız 1. açıklıkta UDL (kapalı çözüm).
+
+    `_map_reactions`ın en riskli dalı — ankastre UÇTA değil, ara düğümde.
+    Sağdaki açıklık yüksüz ve sağ ucu kayıcı olduğunda 2. açıklık kuvvet
+    taşımaz; sistem tek açıklıklı ankastre-mafsallı kirişe indirgenir:
+    R_sol = 3wL/8 = 45, R_ankastre = 5wL/8 = 75, M_ankastre = wL²/8 = 90.
+    """
+    m = BeamModel(spans=[6.0, 6.0], EI=[30_000.0] * 2,
+                  supports=["pin", "fixed", "roller"],
+                  loads=[Load(1, "udl", [20.0])])
+    r = solve(m)
+    assert _tepki(r, 1) == pytest.approx(45.0, rel=1e-4)
+    assert _tepki(r, 2) == pytest.approx(75.0, rel=1e-4)
+    assert _tepki(r, 3) == pytest.approx(0.0, abs=1e-6)
+    # Moment tepkisinin DEĞERİ: yalnız ankastre düğümde dolu olmalı.
+    momentler = {x["node"]: x["M"] for x in r["reactions"]}
+    assert momentler[1] is None and momentler[3] is None
+    assert abs(momentler[2]) == pytest.approx(90.0, rel=1e-4)
+
+
+def test_kararsiz_sistem_temiz_mesaj():
+    """Mekanizma sayımının kaçırdığı düzen PyCBA'nın kararsızlık denetimine düşer.
+
+    O denetimin ham metni İngilizcedir ve kullanıcıya `check_stability=False`
+    önerir; çözücü bunu `is_stable()` ile önden yakalayıp kendi mesajını verir.
+    (`np.linalg.LinAlgError` ayrı bir except dalında YAKALANAMAZ: numpy'da
+    ValueError'ın alt sınıfıdır — bu test o dalın geri gelmesini de engeller.)
+    """
+    m = BeamModel(spans=[6.0, 6.0], EI=[30_000.0] * 2,
+                  supports=["pin", "fixed", "free"],
+                  loads=[Load(1, "udl", [20.0])], hinges=[2])
+    assert m.static_degree() >= 0  # derece sayımı bu düzeni mekanizma saymaz
+    for dil, parca in (("tr", "kararsız"), ("en", "unstable")):
+        with pytest.raises(SolverError) as e:
+            solve(m, dil)
+        assert parca in str(e.value)
+        assert "check_stability" not in str(e.value)
+
+
+def test_gecersiz_model_solverror_verir():
+    """`solve()` doğrulamayı kendisi yapar; ham ValueError sızmamalı.
+
+    `hinges=[5]` iki açıklıklı kirişte geçersiz. `span_hinges` doluyken bu,
+    expand() içinde anlaşılmaz bir `list.index(x): x not in list` hatasına
+    dönüşüyordu — arayüz validate()'i önce çağırdığı için görünmüyordu ama
+    `core/` tek başına da doğru davranmalı.
+    """
+    m = BeamModel(spans=[6.0, 6.0], EI=[30_000.0] * 2,
+                  supports=["pin", "roller", "roller"],
+                  loads=[Load(1, "udl", [20.0])],
+                  hinges=[5], span_hinges=[(1, 3.0)])
+    with pytest.raises(SolverError, match="Mafsal düğüm no 5"):
+        solve(m)
+
+
+def test_konum_hatasi_mekanizma_diye_bildirilmez():
+    """Açıklık dışı mafsal konumu, konum hatası olarak raporlanmalı.
+
+    Doğrulama olmadan expand() `spans=[9, -3]` üretiyor ve kullanıcı "mesnet
+    ekleyin" tavsiyesi alıyordu; asıl sorun konumdur.
+    """
+    m = BeamModel(spans=[6.0, 6.0], EI=[30_000.0] * 2,
+                  supports=["pin", "roller", "roller"],
+                  loads=[Load(1, "udl", [20.0])], span_hinges=[(1, 9.0)])
+    with pytest.raises(SolverError) as e:
+        solve(m, "en")
+    assert "Hinge position" in str(e.value)
+    assert "mechanism" not in str(e.value)

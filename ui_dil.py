@@ -131,6 +131,11 @@ _TR = {
     "sonuclar.baslik": "Sonuçlar",
     "sonuclar.yuk_ekleyin": "Sonuçlar ve mesnet tepkileri için en az bir yük "
                             "ekleyin.",
+    "uyari.ea": "Eksenel sistem hiperstatik (birden çok yatayda tutulu mesnet) "
+                "ve açıklıkların kesiti farklı. Çözücü eksenel rijitliği (EA) "
+                "tüm açıklıklarda eşit varsayar; yatay tepkilerin paylaşımı bu "
+                "yüzden yaklaşıktır. Normal kuvvet diyagramının şekli ve düşey "
+                "sonuçlar bundan etkilenmez.",
 
     # metrik kartları
     "kart.maks": "Maks. {ad} [{birim}]",
@@ -274,6 +279,12 @@ _EN = {
     "sonuclar.baslik": "Results",
     "sonuclar.yuk_ekleyin": "Add at least one load to see results and support "
                             "reactions.",
+    "uyari.ea": "The axial system is statically indeterminate (more than one "
+                "horizontally restrained support) and the spans have different "
+                "sections. The solver assumes equal axial stiffness (EA) in all "
+                "spans, so the distribution of horizontal reactions is "
+                "approximate. The shape of the axial force diagram and the "
+                "vertical results are unaffected.",
 
     "kart.maks": "Max. {ad} [{birim}]",
     "kart.konum": "@ x = {x:.2f} m",

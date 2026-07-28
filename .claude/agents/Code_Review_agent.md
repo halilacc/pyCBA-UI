@@ -22,8 +22,9 @@ düzeltmeleri ana ajan yapar.
    (tek açıklık, ankastre uç, kararsız sistem).
 3. **Gereksiz kod:** kullanılmayan import/değişken/fonksiyon, ölü dal, kopyala-yapıştır
    tekrar, mevcut bir yardımcının yeniden yazımı.
-4. **Tutarlılık:** `LOAD_TYPES` tek kaynak kalmalı; `app.py`'deki `PARAM_LABELS`/`KIND_HINTS`
-   ile senkron mu; widget key deseni (L'ye bağlı key) bozulmuş mu.
+4. **Tutarlılık:** `LOAD_TYPES` tek kaynak kalmalı; `ui_dil.py`'deki `yuk.<kind>` /
+   `ipucu.<kind>` / `param.<p>` anahtarları ve `app.PARAM_UNITS` onunla senkron mu
+   (iki dilde de); widget key deseni (L'ye bağlı key) bozulmuş mu.
 5. **Doğrulama:** şüphelendiğinde çekirdeği UI'sız çalıştırarak kontrol et:
    `.venv\Scripts\python.exe ornek1_surekli_kiris.py` → M_B = −90 kNm, tepkiler 45/150/45 kN.
 

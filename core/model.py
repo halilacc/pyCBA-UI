@@ -345,9 +345,12 @@ class BeamModel:
                 for s in self.supports)
         return r - len(self.hinges) - len(self.span_hinges) - 2
 
-    def to_pycba(self) -> dict:
-        """`BeamAnalysis(**model.to_pycba())` ile doğrudan kullanılabilir sözlük."""
-        errors = self.validate()
+    def to_pycba(self, dil: str = None) -> dict:
+        """`BeamAnalysis(**model.to_pycba())` ile doğrudan kullanılabilir sözlük.
+
+        `dil` yalnız doğrulama hatasının dilini belirler (bkz. core/mesajlar.py).
+        """
+        errors = self.validate(dil)
         if errors:
             raise ValueError(" / ".join(errors))
         # Eksenel yükler PyCBA'ya gitmez (core/axial.py çözer); LM boş kalırsa

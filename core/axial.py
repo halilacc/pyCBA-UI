@@ -32,6 +32,7 @@ def solve_axial(model: BeamModel, dil: str = None) -> dict:
         xN : diyagram apsisleri [m] (eleman uçları; süreksizlikler çift nokta)
         N  : normal kuvvet dizisi [kN] (çekme +)
         H  : {1-tabanlı düğüm no: yatay tepki [kN]} — yalnız yatay tutulu düğümler
+        ea_uyari : True ise EA=1 varsayımı sonucu etkiliyor (bkz. aşağıdaki not)
 
     Eksenel yük varken hiçbir yatay tutulu mesnet yoksa ValueError fırlatır
     (çözücü katmanı bunu SolverError'a çevirir).
@@ -46,9 +47,17 @@ def solve_axial(model: BeamModel, dil: str = None) -> dict:
             "xN": np.array([0.0, total_L]),
             "N": np.zeros(2),
             "H": {i + 1: 0.0 for i in restrained},
+            "ea_uyari": False,
         }
     if not restrained:
         raise ValueError(mesaj("eksenel_mesnet_yok", dil))
+
+    # EA=1 varsayımının sonucu etkilediği tek durum: eksenel sistem hiperstatik
+    # (birden çok yatay tutulu mesnet) VE açıklıkların kesiti farklı. O zaman
+    # tepkilerin paylaşımı gerçekte EA oranına bağlıdır, burada ise yalnız
+    # uzunluk oranına düşer. EA sorulmadığı için kesiti EI farkından tahmin
+    # ediyoruz: EI'ler eşitse (prizmatik kiriş) sonuç zaten kesindir.
+    ea_uyari = len(restrained) > 1 and len(set(model.EI)) > 1
 
     # Kırılma noktaları: mesnet düğümleri + tekil eksenel yük konumları.
     # (Eksenel UDL tüm açıklığa yayılır; uçları zaten düğüm noktalarıdır.)
@@ -111,4 +120,9 @@ def solve_axial(model: BeamModel, dil: str = None) -> dict:
         C = (u[e + 1] - u[e]) / Le + w_el[e] * Le / 2.0
         xN.extend([xs[e], xs[e + 1]])
         N.extend([C, C - w_el[e] * Le])
-    return {"xN": np.asarray(xN, dtype=float), "N": np.asarray(N, dtype=float), "H": H}
+    return {
+        "xN": np.asarray(xN, dtype=float),
+        "N": np.asarray(N, dtype=float),
+        "H": H,
+        "ea_uyari": ea_uyari,
+    }

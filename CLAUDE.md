@@ -61,8 +61,9 @@ değildir; arayüz ileride Gradio/Flask ile değiştirilebilmelidir. UI mantığ
 - `core/model.py` — `BeamModel` ve `Load` dataclass'ları, doğrulama (`validate()` hata
   mesajı listesi döndürür), PyCBA argümanlarına çeviri (`to_pycba()`). `LOAD_TYPES`
   sözlüğü yük tipi → PyCBA LM kodu + parametre adları eşlemesinin tek kaynağıdır;
-  yeni yük tipi eklemek çoğunlukla buraya (ve `app.py`'deki `PARAM_LABELS`/`KIND_HINTS`
-  etiketlerine) satır eklemektir. `hinges` (Gerber iç mafsalları, 1-tabanlı ara
+  yeni yük tipi eklemek çoğunlukla buraya, `ui_dil.py`'ye (`yuk.<kind>`,
+  `ipucu.<kind>`, gerekiyorsa `param.<p>` — iki dile de) ve `app.PARAM_UNITS`'a
+  satır eklemektir. `hinges` (Gerber iç mafsalları, 1-tabanlı ara
   düğüm no'ları) → `eletypes()` ile PyCBA `eletype` koduna çevrilir; kural: mafsal
   her zaman SAĞDAKİ elemanın sol ucuna verilir (açıklık i ↔ düğüm i), böylece her
   açıklık ya FF(1) ya PF(3) olur. `static_degree()` = r − h − 2 ile mekanizma

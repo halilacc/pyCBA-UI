@@ -368,6 +368,12 @@ _sema_ciz(result["reactions"], yukseklik=3.4)
 # ------------------------------------------------------------------ sonuçlar
 st.subheader(t("sonuclar.baslik"))
 
+# Eksenel çözücü EA=1 varsayar; bu yalnız eksenel sistem hiperstatikken VE
+# açıklıkların kesiti farklıyken yatay tepki paylaşımını etkiler (bkz.
+# core/axial.py). Çekirdek bunu bayrakla bildirir, sunum katmanı gösterir.
+if result["ea_uyari"]:
+    st.warning(t("uyari.ea"))
+
 # (has_axial kenar çubuğunda "4. Görünüm" için zaten hesaplandı.)
 # Metrik kartları görünüm toggle'larından etkilenmez: sayısal özet kompakttır ve
 # grafiği kapatan kullanıcı da ekstrem değerleri görmek ister.

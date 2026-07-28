@@ -67,6 +67,8 @@ def solve(model: BeamModel, dil: str = None) -> dict:
     Dönen anahtarlar:
         x, M, V, D   : diyagram dizileri (np.ndarray; D = sehim [m])
         xN, N        : normal kuvvet diyagramı (kendi apsis dizisiyle; çekme +)
+        ea_uyari     : True ise yatay tepkiler EA=1 varsayımına bağlı
+                       (bkz. core/axial.py); sunum katmanı uyarı gösterir
         reactions    : mesnet tepkileri (düğüm bazında; bkz. _map_reactions;
                        "H" yatay tepki, eksenel çözümden gelir)
         Mmax, Mmin   : ekstrem momentler [kNm]
@@ -77,10 +79,19 @@ def solve(model: BeamModel, dil: str = None) -> dict:
 
     Kararsız/çözülemez sistemde SolverError fırlatır.
     """
+    # Doğrulama ÖNCE gelir: geçersiz bir mafsal düğümü ya da açıklığı aşan bir
+    # konum, expand() içinde ham (SolverError'a sarılmamış, anlaşılmaz) bir
+    # ValueError'a ya da yanıltıcı bir "mekanizma" mesajına dönüşür. app.py
+    # zaten validate() çağırıyor; bu satır core'un tek başına da doğru
+    # davranmasını sağlar.
+    errors = model.validate(dil)
+    if errors:
+        raise SolverError(" / ".join(errors))
+
     # Mekanizma ön-kontrolü: mafsal eklendikçe sistem kolayca hipostatik olur ve
-    # PyCBA'dan gelen tekil-matris hatası kullanıcıya nedeni anlatmaz. Derece
+    # PyCBA'dan gelen kararsızlık hatası kullanıcıya nedeni anlatmaz. Derece
     # sayımı (bkz. BeamModel.static_degree) mekanizmayı isabetli bir mesajla
-    # yakalar; yetersiz kaldığı düzenleri aşağıdaki LinAlgError yine tutar.
+    # yakalar; yetersiz kaldığı düzenleri aşağıdaki is_stable() yine tutar.
     # Açıklık içi mafsallar burada düğüme çevrilir; bu noktadan sonra `gm`
     # (genişletilmiş model) kullanılır. node_map, tepkileri kullanıcının düğüm
     # numaralandırmasına geri çevirmek içindir.
@@ -92,12 +103,18 @@ def solve(model: BeamModel, dil: str = None) -> dict:
             n_mafsal=len(model.hinges) + len(model.span_hinges),
         ))
     try:
-        ba = cba.BeamAnalysis(**gm.to_pycba())
+        ba = cba.BeamAnalysis(**gm.to_pycba(dil))
+        # PyCBA'nın kararsızlık denetimi analyze() içinde ValueError fırlatır ve
+        # metni İngilizcedir, üstelik kullanıcıya `analyze(check_stability=False)`
+        # gibi bir API önerir. is_stable() aynı denetimi önden yapar, biz de kendi
+        # mesajımızı veririz. (True sonucu önbelleklenir; analyze tekrar bakmaz.)
+        # np.linalg.LinAlgError ayrı bir dalda YAKALANMAZ: numpy'da ValueError'ın
+        # alt sınıfıdır, aşağıdaki dal onu zaten tutar.
+        if not ba.is_stable():
+            raise SolverError(mesaj("tekil_matris", dil))
         ba.analyze()
     except ValueError as e:
         raise SolverError(mesaj("cozulemedi", dil, hata=e)) from e
-    except np.linalg.LinAlgError as e:
-        raise SolverError(mesaj("tekil_matris", dil)) from e
 
     res = ba.beam_results.results
     M, V, D, x = (np.asarray(a) for a in (res.M, res.V, res.D, res.x))
@@ -128,6 +145,7 @@ def solve(model: BeamModel, dil: str = None) -> dict:
         "D": D,
         "xN": ax_res["xN"],
         "N": N,
+        "ea_uyari": ax_res["ea_uyari"],
         "reactions": reactions,
         "Nmax": float(N.max()),
         "Nmin": float(N.min()),
