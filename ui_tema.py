@@ -421,7 +421,18 @@ label, [data-testid="stWidgetLabel"] *, [data-testid="stCaptionContainer"], [dat
    görünür kalsın diye muted, etkin olan ink. */
 [data-testid="stNumberInputStepUp"] *, [data-testid="stNumberInputStepDown"] *,
 [data-testid="stNumberInputClearButton"], [data-testid="stNumberInputClearButton"] * {
-  color: var(--pc-muted) !important; fill: currentColor !important;
+  color: var(--pc-muted) !important;
+}
+/* fill YALNIZ gerçek şekil path'lerine verilir. Temizle (⊗) ikonunun SVG'si iki
+   path içerir: önce `fill="none"` olan 24×24'lük hizalama karesi, sonra asıl
+   çarpı şekli. `* { fill: currentColor !important }` birincinin fill="none"unu
+   da eziyor ve alana değer girilir girilmez sağda İÇİ DOLU KARE çıkıyordu
+   (DOM'dan ölçüldü: hesaplanan fill rgb(156,152,143)). Adım ikonlarında tek
+   path var, onlar zaten svg'nin currentColor'ını miras alır. */
+[data-testid="stNumberInputStepUp"] path:not([fill="none"]),
+[data-testid="stNumberInputStepDown"] path:not([fill="none"]),
+[data-testid="stNumberInputClearButton"] path:not([fill="none"]) {
+  fill: currentColor !important;
 }
 [data-testid="stNumberInputStepUp"]:not(:disabled) *,
 [data-testid="stNumberInputStepDown"]:not(:disabled) * {
@@ -435,12 +446,26 @@ label, [data-testid="stWidgetLabel"] *, [data-testid="stCaptionContainer"], [dat
 [data-testid="stSelectboxVirtualDropdownEmpty"] {
   background-color: var(--pc-surface2) !important;
 }
+/* Seçenekler <li> DEĞİL: Streamlit 1.59 sanal listeyi react-aria ile çizer ve
+   her seçenek `role="option"` taşıyan bir <div>'dir (DOM'dan ölçüldü: li sayısı
+   0, seçenek rengi rgb(28,27,25) = açık temanın #1C1B19'u). Yalnız `li`
+   hedefleyen kural hiç tutmuyordu; popover zemini koyu olduğu için yazı
+   okunmuyordu. `li` yolu multiselect gibi hâlâ baseweb menüsü kullanan
+   bileşenler için korunur. */
+[data-testid="stSelectboxVirtualDropdown"] [role="option"],
+[data-testid="stSelectboxVirtualDropdown"] [role="option"] *,
+[data-baseweb="popover"] [role="option"],
+[data-baseweb="popover"] [role="option"] *,
+[data-baseweb="popover"] li, [data-baseweb="popover"] li *,
 [data-testid="stSelectboxVirtualDropdown"] li,
 [data-testid="stSelectboxVirtualDropdown"] li *,
 [data-testid="stSelectboxVirtualDropdownEmpty"],
 [data-testid="stSelectboxVirtualDropdownEmpty"] li {
   color: var(--pc-ink) !important;
 }
+[data-testid="stSelectboxVirtualDropdown"] [role="option"]:hover,
+[data-baseweb="popover"] [role="option"]:hover,
+[data-baseweb="popover"] li:hover,
 [data-testid="stSelectboxVirtualDropdown"] li:hover {
   background-color: color-mix(in srgb, var(--pc-acc) 22%, transparent) !important;
 }

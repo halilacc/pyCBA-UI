@@ -147,16 +147,38 @@ function lum(c){const m=c.match(/[\d.]+/g);if(!m||(m[3]!==undefined&&+m[3]<0.5))
 ```
 
 Açık tema değerleri (bunları görürsen kural eksik): zemin `#FBFBFA` / `#F3F2EF`,
-metin `#1C1B19` veya `rgba(28,27,25,0.6)`. Yanlış pozitif: `stCheckbox` içindeki
-12×12 topuz açık olmalı (mor ray üzerinde).
+metin `#1C1B19` veya `rgba(28,27,25,0.6)`.
+
+Taramanın **yanlış pozitifleri** (düzeltmeye kalkma, ölçüp doğrula):
+- `stCheckbox` içindeki 12×12 topuz açık olmalı (mor ray üzerinde).
+- `stSidebarCollapseButton` / `stExpandSidebarButton` / `stMainMenuButton`
+  ikonları koyu ÖLÇÜLÜR ama ekranda açıktır: bunlara `filter: invert(1)`
+  uygulanır, `getComputedStyle` filtre öncesi rengi bildirir.
+- Butonlar geçici olarak açık ölçülebilir (hover/rerun anı). Fare müdahalesi
+  olmadan, ilgili expander açıkken yeniden ölç.
+
+**Tarayıcı eklentisi yoksa** (Claude in Chrome bağlanmıyorsa) ölçümü headless
+Chrome + CDP ile yap; venv'de `websockets` + `requests` zaten var:
+`chrome.exe --headless=new --remote-debugging-port=9333 --user-data-dir=… URL`
+→ `GET /json` ile `webSocketDebuggerUrl` → `Runtime.evaluate` ile
+`getComputedStyle` oku. Açılır listeler `element.click()` ile AÇILMAZ (react-aria
+gerçek fare olayı bekler); `Input.dispatchMouseEvent` ile `mousePressed` +
+`mouseReleased` gönder.
 
 Yaşanmış tuzaklar — tahmin etme, DOM'dan `getComputedStyle` ile ölç:
 - Form gönder butonunda `kind` değeri `secondary` DEĞİL, **`secondaryFormSubmit`**.
 - Açılır listeler portal ile `<body>` altına basılır; app kapsayıcısını hedefleyen
   kurallar ulaşmaz (`[data-baseweb="popover"]`, `stSelectboxVirtualDropdown`).
+- Selectbox seçenekleri `<li>` DEĞİL: 1.59'da sanal liste react-aria ile çizilir,
+  her seçenek `role="option"` taşıyan bir `<div>`'dir. Yalnız `li` hedefleyen
+  kural hiç tutmaz. Multiselect HÂLÂ `<li>` kullanır — ikisini de hedefle.
 - Multiselect'in "Choose options" ipucu input placeholder'ı değil, ayrı bir `<div>`.
 - `number_input` adım ikonlarının rengi SATIR İÇİ verilir; devre dışıyken açık
   temanın `fadedText40`'ı olur (alan boşken −/+ kaybolur).
+- İkon SVG'lerine `* { fill: currentColor !important }` YAZMA: Streamlit ikonları
+  şeklin önüne `fill="none"` olan 24×24 hizalama path'i koyar; `!important` onu
+  da ezip ikonu içi dolu kareye çevirir (temizle ⊗ düğmesinde yaşandı). Gerekirse
+  `path:not([fill="none"])` ile kapsamı daralt.
 - Emotion sınıfları (`st-emotion-cache-…`, `st-cm`) sürümle değişir; asla seçici
   olarak kullanma — testid/baseweb/öznitelik yolu kullan.
 - `ui_tema.py` içe aktarılmış modüldür: değiştirince Streamlit'i **yeniden başlat**,
