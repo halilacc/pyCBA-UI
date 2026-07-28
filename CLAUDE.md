@@ -6,7 +6,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 PyCBA (sürekli kiriş analizi kütüphanesi) üzerine kurulmuş Streamlit web arayüzü.
 PyCBA fork edilmez, `.venv` içinden bağımlılık olarak `import` edilir. Git deposu değildir.
-Tüm kod/yorum dili Türkçe; buna uy. Detaylı tasarım kararları: `pyCBA-UI-Planı.md`.
+Tüm **kod/yorum/docstring** dili Türkçe; buna uy. Kullanıcıya görünen metinler ise
+Türkçe+İngilizce kataloglardadır (bkz. "Dil"). Detaylı tasarım kararları:
+`pyCBA-UI-Planı.md`.
 
 ## Komutlar
 
@@ -39,9 +41,16 @@ değişikliklerinden sonra bu değerlerin korunduğunu kontrol et.
 
 **Testler:** `tests/test_core.py` — hepsi elle/kapalı formülle doğrulanabilir
 vakalar (referans problem, basit kiriş, konsol, Gerber düzenleri, mekanizma
-hatası). PyCBA çıktısını "olduğu gibi" dondurma; yeni test eklerken de analitik
-olarak doğrulanabilir bir vaka seç. Kök `conftest.py` yalnızca proje kökünü
+hatası, eksenel/normal kuvvet). PyCBA çıktısını "olduğu gibi" dondurma; yeni test
+eklerken de analitik olarak doğrulanabilir bir vaka seç. `tests/test_dil.py` iki
+dil kataloğunun bütünlüğünü denetler. Kök `conftest.py` yalnızca proje kökünü
 `sys.path`'e sokmak içindir.
+
+**Arayüzü tarayıcısız sınama:** `streamlit.testing.v1.AppTest` `app.py`'yi
+gerçekten çalıştırır ve istisnaları yüzeye çıkarır — sunum katmanındaki bir
+değişikliği doğrulamanın en hızlı yolu:
+`at = AppTest.from_file("app.py"); at.session_state["dil"] = "en"; at.run()`
+sonra `at.exception`, `at.metric`, `at.error`, `at.sidebar.header` incelenir.
 
 ## Mimari
 
@@ -82,6 +91,34 @@ Dikkat edilecekler:
 - `app.py`'deki konum girdilerinin `key`'i açıklık no ve L'ye bağlıdır — açıklık
   değişince bayat değer taşınmasın diye; bu deseni bozma.
 - Sehim `D` metre cinsindendir; UI mm'ye çevirerek gösterir.
+
+## Dil (TR/EN)
+
+İki katalog var, ikisi de Streamlit'ten bağımsız saf sözlük:
+
+- `ui_dil.py` — arayüz metinleri (`cevir(dil, anahtar, **kw)`). `app.py` bunu
+  `t(...)` adıyla kendine bağlar; `ui_cizim.py` `dil` parametresi alır.
+- `core/mesajlar.py` — çekirdeğin kullanıcıya gösterilen hata mesajları
+  (`mesaj(anahtar, dil, **kw)`).
+
+Dil, çağıran katmandan **açık parametre** olarak geçer: `validate(dil)`,
+`check_load_position(..., dil)`, `solve(model, dil)`, `solve_axial(model, dil)`,
+`ciz_sema(..., dil)`. Modül düzeyinde "geçerli dil" global'i BİLEREK yok —
+Streamlit her oturumu ayrı iş parçacığında çalıştırdığı için global, bir
+kullanıcının seçimini diğerine sızdırırdı. Hepsinin varsayılanı `tr`, yani dil
+geçirmeyen çağrılar ve testler eskisi gibi çalışır.
+
+Kural: `app.py`/`ui_cizim.py` içine kullanıcıya görünen sabit dize YAZMA;
+anahtar ekle. Anahtarlar nokta ile gruplanır (`mesnet.pin`, `yuk.udl`,
+`ipucu.udl`, `param.w`). Birimler (kN, m, kNm²) çeviriye girmez —
+`app.PARAM_UNITS` dilden bağımsızdır.
+
+Yeni yük tipi / mesnet tipi eklerken `ui_dil.py`'ye `yuk.<kind>` + `ipucu.<kind>`
+(veya `mesnet.<tip>`) satırlarını **iki dile de** ekle; bu anahtarlar kod içinde
+dize birleştirmesiyle kurulduğu için aramada görünmez, unutulursa yalnız
+`tests/test_dil.py` yakalar. O dosya ayrıca iki dilin anahtar kümesinin ve
+`{alan}` adlarının eşleştiğini denetler (uyuşmazlık çalışma zamanında KeyError
+olurdu).
 
 ## Gece modu (ui_tema.py)
 

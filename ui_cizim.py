@@ -12,6 +12,7 @@ from matplotlib.lines import Line2D
 from pycba.render import BeamPlotter, Support
 
 from core import AXIAL_KINDS, build_beam
+from ui_dil import cevir
 
 # Şema renk paleti (tek kaynak). "Yeşil = normal kuvvet" görsel dili şema ile
 # app.py'deki Plotly normal kuvvet diyagramında ortaktır; app.py bu yeşili
@@ -28,7 +29,7 @@ assert {_AXIAL_POINT, _AXIAL_UDL} <= AXIAL_KINDS, (
 )
 
 
-def ciz_sema(ax, model, reactions=None):
+def ciz_sema(ax, model, reactions=None, dil=None):
     """Kiriş şemasını modeldeki GERÇEK mesnet tipleriyle çiz.
 
     PyCBA'nın BeamPlotter'ı mesnet türünü tutulu DOF vektöründen tahmin eder;
@@ -79,10 +80,10 @@ def ciz_sema(ax, model, reactions=None):
     # kendisi çıkarıp (render.py `_infer_hinges`) beyaz daire olarak çiziyor.
     # Burada ikinci bir daire çizmek aynı glifi üst üste bindiriyordu.
     ciz_eksenel_yukler(ax, model)
-    _ciz_legend(ax, model, reactions)
+    _ciz_legend(ax, model, reactions, dil)
 
 
-def _ciz_legend(ax, model, reactions):
+def _ciz_legend(ax, model, reactions, dil=None):
     """Şemadaki renk kodlarını açıklayan legend ekle (yalnız çizilen kategoriler).
 
     Renk dili: kırmızı = düşey yük, mavi = eksenel yük, yeşil = mesnet tepkisi
@@ -92,9 +93,9 @@ def _ciz_legend(ax, model, reactions):
     """
     girisler = []
     if any(ld.kind not in AXIAL_KINDS for ld in model.loads):
-        girisler.append(("tab:red", "Düşey yük"))
+        girisler.append(("tab:red", cevir(dil, "sema.legend.dusey")))
     if any(ld.kind in AXIAL_KINDS for ld in model.loads):
-        girisler.append((EKSENEL_YUK_MAVISI, "Eksenel yük"))
+        girisler.append((EKSENEL_YUK_MAVISI, cevir(dil, "sema.legend.eksenel")))
     tepki_var = bool(reactions) and any(
         (r.get("V") and abs(r["V"]) > 1e-6)
         or (r.get("M") and abs(r["M"]) > 1e-6)
@@ -102,7 +103,7 @@ def _ciz_legend(ax, model, reactions):
         for r in reactions
     )
     if tepki_var:
-        girisler.append((NORMAL_KUVVET_YESILI, "Mesnet tepkisi"))
+        girisler.append((NORMAL_KUVVET_YESILI, cevir(dil, "sema.legend.tepki")))
     if not girisler:
         return
     handles = [

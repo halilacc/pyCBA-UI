@@ -503,7 +503,7 @@ _HERO_A, _HERO_B, _HERO_C, _HERO_Y = 24.0, 130.0, 236.0, 46.0
 _HERO_SURE = 3.4
 
 
-def _kiris_svg() -> str:
+def _kiris_svg(aria: str) -> str:
     """Hero görseli: iki açıklıklı sürekli kiriş şeması (yayılı yük + sehim).
 
     Sehim eğrisi gerçek biçimi taklit eder: simetrik iki açıklıkta orta
@@ -539,7 +539,7 @@ def _kiris_svg() -> str:
     )
     return (
         '<svg class="pc-beam" viewBox="6 8 248 56" role="img" '
-        'aria-label="İki açıklıklı sürekli kiriş: yayılı yük altında sehim">'
+        f'aria-label="{aria}">'
         f'<g class="pc-beam__yuk" stroke-linecap="round" {faz}>{"".join(oklar)}</g>'
         f'{mesnetler}'
         f'<line class="pc-beam__kiris" x1="{a}" y1="{y}" x2="{c}" y2="{y}" />'
@@ -548,8 +548,12 @@ def _kiris_svg() -> str:
     )
 
 
-def hero_baslik(baslik: str, altyazi: str, eyebrow: str = "Yapı statiği · sürekli kiriş"):
-    """st.title yerine animasyonlu, gradyan-aksanlı hero başlık bloğu çiz."""
+def hero_baslik(baslik: str, altyazi: str, eyebrow: str, sema_aria: str):
+    """st.title yerine animasyonlu, gradyan-aksanlı hero başlık bloğu çiz.
+
+    Metinlerin tamamı (şemanın aria etiketi dahil) dışarıdan verilir; bu modül
+    dil kataloğunu tanımaz (bkz. ui_dil.py).
+    """
     st.markdown(
         f'<div class="pc-hero">'
         f'<div class="pc-hero__metin">'
@@ -558,7 +562,7 @@ def hero_baslik(baslik: str, altyazi: str, eyebrow: str = "Yapı statiği · sü
         f'<p class="pc-hero__sub">{altyazi}</p>'
         f'<div class="pc-hero__line"></div>'
         f'</div>'
-        f'<div class="pc-hero__gorsel">{_kiris_svg()}</div>'
+        f'<div class="pc-hero__gorsel">{_kiris_svg(sema_aria)}</div>'
         f'</div>',
         unsafe_allow_html=True,
     )

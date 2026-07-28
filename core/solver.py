@@ -9,6 +9,7 @@ import numpy as np
 import pycba as cba
 
 from .axial import solve_axial
+from .mesajlar import mesaj
 from .model import BeamModel
 
 
@@ -57,8 +58,11 @@ def _map_reactions(model: BeamModel, R_vector) -> list:
     return reactions
 
 
-def solve(model: BeamModel) -> dict:
+def solve(model: BeamModel, dil: str = None) -> dict:
     """Modeli çöz ve sonuçları düz bir sözlük olarak döndür.
+
+    `dil` yalnız SolverError mesajlarının dilini belirler (bkz. core/mesajlar.py);
+    sayısal sonuçları etkilemez. Verilmezse mesajlar Türkçedir.
 
     Dönen anahtarlar:
         x, M, V, D   : diyagram dizileri (np.ndarray; D = sehim [m])
@@ -83,39 +87,29 @@ def solve(model: BeamModel) -> dict:
     gm, node_map = model.expand()
     derece = model.static_degree()
     if derece < 0:
-        raise SolverError(
-            f"Sistem kararsız (mekanizma): statik belirsizlik derecesi {derece}. "
-            f"{len(model.hinges) + len(model.span_hinges)} mafsal için mesnet "
-            "tepkisi yetersiz — mafsal sayısını azaltın ya da mesnet "
-            "ekleyin/güçlendirin."
-        )
+        raise SolverError(mesaj(
+            "mekanizma", dil, derece=derece,
+            n_mafsal=len(model.hinges) + len(model.span_hinges),
+        ))
     try:
         ba = cba.BeamAnalysis(**gm.to_pycba())
         ba.analyze()
     except ValueError as e:
-        raise SolverError(
-            f"Sistem çözülemedi: {e}\n"
-            "Mesnetleri kontrol edin — kiriş kararsız (mekanizma) olabilir "
-            "(örn. tek bir mafsallı mesnet yeterli değildir)."
-        ) from e
+        raise SolverError(mesaj("cozulemedi", dil, hata=e)) from e
     except np.linalg.LinAlgError as e:
-        raise SolverError(
-            "Sistem kararsız: rijitlik matrisi tekil. Mesnetleri kontrol edin."
-        ) from e
+        raise SolverError(mesaj("tekil_matris", dil)) from e
 
     res = ba.beam_results.results
     M, V, D, x = (np.asarray(a) for a in (res.M, res.V, res.D, res.x))
     if not (np.all(np.isfinite(M)) and np.all(np.isfinite(V)) and np.all(np.isfinite(D))):
-        raise SolverError(
-            "Sistem kararsız: sonuçlar sonsuz/tanımsız çıktı. Mesnetleri kontrol edin."
-        )
+        raise SolverError(mesaj("sonuc_tanimsiz", dil))
 
     # Eksenel çözüm (PyCBA'dan bağımsız). Yatay tutulu mesnet yoksa ve eksenel
     # yük varsa kullanıcıya gösterilebilir hata üret.
     try:
-        ax_res = solve_axial(gm)
+        ax_res = solve_axial(gm, dil)
     except ValueError as e:
-        raise SolverError(f"Eksenel sistem çözülemedi: {e}") from e
+        raise SolverError(mesaj("eksenel_cozulemedi", dil, hata=e)) from e
 
     reactions = _map_reactions(gm, ba.beam_results.R)
     for r in reactions:

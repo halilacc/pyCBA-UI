@@ -16,6 +16,7 @@ Yatay tutulu mesnet tipleri: pin ve fixed (roller/free yatayda serbest).
 
 import numpy as np
 
+from .mesajlar import mesaj
 from .model import BeamModel, AXIAL_KINDS
 
 # Yatayda tutulu mesnet tipleri
@@ -24,7 +25,7 @@ HORIZ_RESTRAINED = ("pin", "fixed")
 _TOL = 1e-9
 
 
-def solve_axial(model: BeamModel) -> dict:
+def solve_axial(model: BeamModel, dil: str = None) -> dict:
     """Modelin eksenel yüklerini çöz.
 
     Dönüş sözlüğü:
@@ -47,10 +48,7 @@ def solve_axial(model: BeamModel) -> dict:
             "H": {i + 1: 0.0 for i in restrained},
         }
     if not restrained:
-        raise ValueError(
-            "Eksenel yük var ama yatayda tutulu mesnet yok (pin veya fixed gerekli); "
-            "kiriş eksenel doğrultuda mekanizmadır."
-        )
+        raise ValueError(mesaj("eksenel_mesnet_yok", dil))
 
     # Kırılma noktaları: mesnet düğümleri + tekil eksenel yük konumları.
     # (Eksenel UDL tüm açıklığa yayılır; uçları zaten düğüm noktalarıdır.)

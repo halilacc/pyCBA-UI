@@ -8,6 +8,8 @@ doğrular ve PyCBA'nın `BeamAnalysis` kurucusunun beklediği argümanlara çevi
 from dataclasses import dataclass, field
 from typing import List, Optional
 
+from .mesajlar import mesaj
+
 
 # UI dropdown'ı ile PyCBA `supports=` adları birebir aynı (pycba.utils._SUPPORT_DOF).
 SUPPORT_TYPES = ["pin", "roller", "fixed", "free"]
@@ -35,40 +37,32 @@ LOAD_TYPES = {
 AXIAL_KINDS = {k for k, v in LOAD_TYPES.items() if v[0] is None}
 
 
-def check_load_position(kind: str, values: List[float], L: float) -> Optional[str]:
+def check_load_position(kind: str, values: List[float], L: float,
+                        dil: str = None) -> Optional[str]:
     """Konum parametrelerinin açıklık içinde kaldığını denetle.
 
     `a` her zaman açıklığın SOL ucundan ölçülür; `c` yayılı yükün uzunluğudur.
-    Hata varsa açıklayıcı mesaj, yoksa None döndürür.
+    Hata varsa açıklayıcı mesaj, yoksa None döndürür. `dil` verilmezse mesajlar
+    Türkçedir (bkz. core/mesajlar.py).
     """
     if kind in ("point", "moment", "axial_point"):
         a = values[1]
         if not (0 <= a <= L):
-            return f"Konum a={a:g} m açıklık dışında (0 ile {L:g} m arasında olmalı)."
-    elif kind == "partial_udl":
-        _, a, c = values
+            return mesaj("konum_aciklik_disinda", dil, a=a, L=L)
+    elif kind in ("partial_udl", "trapezoid"):
+        if kind == "partial_udl":
+            _, a, c = values
+        else:
+            _, _, a, c = values
+            if a == 0 and c == 0:
+                return None  # trapez kısayolu: tüm açıklığa yayılır
         if a < 0:
-            return "Başlangıç konumu a negatif olamaz."
+            return mesaj("a_negatif", dil)
         if c <= 0:
-            return "Yayılı uzunluk c pozitif olmalı."
+            # Trapezde "tüm açıklık" kısayolu olduğu için ipucu farklı.
+            return mesaj("c_pozitif" if kind == "partial_udl" else "c_pozitif_trapez", dil)
         if a + c > L + 1e-9:
-            return (
-                f"Yük açıklığı aşıyor: a+c = {a + c:g} m > L = {L:g} m. "
-                "Başlangıç konumunu veya uzunluğu küçültün."
-            )
-    elif kind == "trapezoid":
-        _, _, a, c = values
-        if a == 0 and c == 0:
-            return None  # tüm açıklığa yayılır
-        if a < 0:
-            return "Başlangıç konumu a negatif olamaz."
-        if c <= 0:
-            return "Yayılı uzunluk c pozitif olmalı (tüm açıklık için a=0, c=0 girin)."
-        if a + c > L + 1e-9:
-            return (
-                f"Yük açıklığı aşıyor: a+c = {a + c:g} m > L = {L:g} m. "
-                "Başlangıç konumunu veya uzunluğu küçültün."
-            )
+            return mesaj("yuk_aciligi_asiyor", dil, ac=a + c, L=L)
     return None
 
 
@@ -86,14 +80,15 @@ class Load:
     kind: str
     values: List[float] = field(default_factory=list)
 
-    def check_params(self) -> None:
+    def check_params(self, dil: str = None) -> None:
         """Parametre sayısını denetle; uyuşmazlıkta ValueError."""
         _, _, params = LOAD_TYPES[self.kind]
         if len(self.values) != len(params):
-            raise ValueError(
-                f"'{self.kind}' yükü {len(params)} parametre bekler "
-                f"({', '.join(params)}), {len(self.values)} verildi."
-            )
+            raise ValueError(mesaj(
+                "yuk_parametre_sayisi", dil, kind=self.kind,
+                beklenen=len(params), adlar=", ".join(params),
+                verilen=len(self.values),
+            ))
 
     def to_lm_row(self) -> list:
         if self.kind in AXIAL_KINDS:
@@ -194,76 +189,68 @@ class BeamModel:
     def n_nodes(self) -> int:
         return len(self.spans) + 1
 
-    def validate(self) -> List[str]:
-        """Hata mesajları listesi döndürür; boş liste = model geçerli."""
+    def validate(self, dil: str = None) -> List[str]:
+        """Hata mesajları listesi döndürür; boş liste = model geçerli.
+
+        `dil` verilmezse mesajlar Türkçedir (bkz. core/mesajlar.py).
+        """
         errors = []
+
+        def hata(anahtar, **kw):
+            errors.append(mesaj(anahtar, dil, **kw))
+
         if not self.spans:
-            errors.append("En az bir açıklık tanımlanmalı.")
+            hata("aciklik_yok")
         if any(L <= 0 for L in self.spans):
-            errors.append("Tüm açıklık uzunlukları pozitif olmalı.")
+            hata("aciklik_pozitif")
         if len(self.EI) != self.n_spans:
-            errors.append(
-                f"EI sayısı ({len(self.EI)}) açıklık sayısına ({self.n_spans}) eşit olmalı."
-            )
+            hata("ei_sayisi", n_ei=len(self.EI), n_span=self.n_spans)
         if any(ei <= 0 for ei in self.EI):
-            errors.append("Tüm EI değerleri pozitif olmalı.")
+            hata("ei_pozitif")
         if len(self.supports) != self.n_nodes:
-            errors.append(
-                f"Mesnet sayısı ({len(self.supports)}) düğüm sayısına "
-                f"({self.n_nodes} = açıklık + 1) eşit olmalı."
-            )
+            hata("mesnet_sayisi", n_sup=len(self.supports), n_node=self.n_nodes)
         for s in self.supports:
             if s not in SUPPORT_TYPES:
-                errors.append(f"Bilinmeyen mesnet tipi: {s!r}")
+                hata("mesnet_tipi", tip=s)
         # Mafsal yalnız ARA düğüme konur: uç düğümde tek eleman vardır, orada
         # "mafsal" zaten mesnet tipinin (pin/roller) işidir.
         gorulen = set()
         for h in self.hinges:
             if not (2 <= h <= self.n_nodes - 1):
-                errors.append(
-                    f"Mafsal düğüm no {h} geçersiz: yalnız ara düğümlere "
-                    f"(2..{self.n_nodes - 1}) mafsal konabilir."
-                )
+                hata("mafsal_dugum_gecersiz", h=h, son=self.n_nodes - 1)
             elif h in gorulen:
-                errors.append(f"Düğüm {h} birden fazla kez mafsal olarak verildi.")
+                hata("mafsal_tekrar", h=h)
             gorulen.add(h)
         # Açıklık içi mafsal: konum açıklığın İÇİNDE olmalı (uçta olsaydı bu
         # zaten düğüm mafsalıdır — `hinges` ile verilir).
         gorulen_ic = set()
         for sp, a in self.span_hinges:
             if not (1 <= sp <= self.n_spans):
-                errors.append(f"Açıklık içi mafsal: açıklık no {sp} geçersiz "
-                              f"(1..{self.n_spans}).")
+                hata("ic_mafsal_aciklik_gecersiz", sp=sp, n_span=self.n_spans)
                 continue
             L = self.spans[sp - 1]
             if not (1e-9 < a < L - 1e-9):
-                errors.append(
-                    f"Açıklık {sp} içindeki mafsal konumu a={a:g} m geçersiz: "
-                    f"0 ile {L:g} m arasında (uçlar hariç) olmalı. "
-                    "Mesnet hizasında mafsal için düğüm mafsalını kullanın."
-                )
+                hata("ic_mafsal_konum", sp=sp, a=a, L=L)
             elif (sp, round(a, 9)) in gorulen_ic:
-                errors.append(f"Açıklık {sp}, a={a:g} m'de birden fazla mafsal verildi.")
+                hata("ic_mafsal_tekrar", sp=sp, a=a)
             gorulen_ic.add((sp, round(a, 9)))
         for i, ld in enumerate(self.loads, start=1):
             if ld.kind not in LOAD_TYPES:
-                errors.append(f"Yük {i}: bilinmeyen tip {ld.kind!r}")
+                hata("yuk_tipi_bilinmeyen", i=i, kind=ld.kind)
                 continue
             if not (1 <= ld.span <= self.n_spans):
-                errors.append(
-                    f"Yük {i}: açıklık no {ld.span} geçersiz (1..{self.n_spans})."
-                )
+                hata("yuk_aciklik_gecersiz", i=i, sp=ld.span, n_span=self.n_spans)
             try:
-                ld.check_params()
+                ld.check_params(dil)
             except ValueError as e:
-                errors.append(f"Yük {i}: {e}")
+                hata("yuk_oneki", i=i, mesaj=str(e))
                 continue
             if 1 <= ld.span <= self.n_spans:
                 pos_err = check_load_position(
-                    ld.kind, ld.values, self.spans[ld.span - 1]
+                    ld.kind, ld.values, self.spans[ld.span - 1], dil
                 )
                 if pos_err:
-                    errors.append(f"Yük {i}: {pos_err}")
+                    hata("yuk_oneki", i=i, mesaj=pos_err)
         return errors
 
     def expand(self):
