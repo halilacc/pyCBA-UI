@@ -395,12 +395,21 @@ def _ekstrem_konum(x_arr, y_arr, en_buyuk):
     idx = int(y_arr.argmax() if en_buyuk else y_arr.argmin())
     return float(x_arr[idx])
 
+def _biciml(v, olcek=1.0):
+    """Ekstremi karta yazılacak metne çevir; "-0.00"ı "0.00" yapar.
+
+    Sıfır diyagram parçalarında kayan nokta -0.0 veya -1e-16 üretir; ikisi de
+    "-0.00" diye basılır ve okuyan basınç sanır. Gösterim hassasiyetine
+    yuvarlayıp +0.0 eklemek negatif sıfırı pozitife çevirir.
+    """
+    return f"{round(v * olcek, 2) + 0.0:.2f}"
+
 def _kart(col, baslik, birim, xd, yd, olcek=1.0):
-    vmaks, vmin = float(yd.max()) * olcek, float(yd.min()) * olcek
-    col.metric(f"Maks. {baslik} [{birim}]", f"{vmaks:.2f}")
+    vmaks, vmin = float(yd.max()), float(yd.min())
+    col.metric(f"Maks. {baslik} [{birim}]", _biciml(vmaks, olcek))
     col.caption(
         f"@ x = {_ekstrem_konum(xd, yd, True):.2f} m  \n"
-        f"Min. {vmin:.2f} @ x = {_ekstrem_konum(xd, yd, False):.2f} m"
+        f"Min. {_biciml(vmin, olcek)} @ x = {_ekstrem_konum(xd, yd, False):.2f} m"
     )
 
 def _diyagram_csv(basliklar, *diziler):

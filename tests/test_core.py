@@ -8,9 +8,11 @@ görmek.
 Çalıştırma:  .venv\\Scripts\\python.exe -m pytest -q
 """
 
+import numpy as np
 import pytest
 
 from core import BeamModel, Load, SolverError, solve
+from core.axial import solve_axial
 
 TOL = 1e-6  # bağıl tolerans (çözümler analitik; sayısal gürültü çok küçük)
 
@@ -21,6 +23,18 @@ def _tepki(sonuc, dugum):
         if r["node"] == dugum:
             return r["V"]
     raise AssertionError(f"Düğüm {dugum} için tepki yok")
+
+
+def _N(sonuc, x):
+    """N diyagramında x konumundaki değer(ler)i soldan sağa döndür.
+
+    Diyagram eleman uçlarından kurulur, yani her iç düğüm dizide iki kez geçer.
+    Tekil eksenel yükte bu iki değer FARKLIDIR (sıçrama); testler ikisini de
+    görebilsin diye liste döner: [sol_değer, sağ_değer]. Kiriş uçlarında ve
+    sıçramasız noktalarda tek/eşit değerler gelir.
+    """
+    xN, N = np.asarray(sonuc["xN"]), np.asarray(sonuc["N"])
+    return [float(N[i]) for i in range(len(xN)) if abs(xN[i] - x) < 1e-9]
 
 
 # --------------------------------------------------------- sürekli kiriş (referans)
@@ -262,3 +276,125 @@ def test_fazla_mafsal_mekanizma_hatasi():
     assert model.static_degree() == -1
     with pytest.raises(SolverError, match="mekanizma"):
         solve(model)
+
+
+# ------------------------------------------------------- eksenel (normal kuvvet)
+# İşaret kabulü (bkz. core/axial.py): yük +x sağa pozitif, N çekmede pozitif,
+# yatay mesnet tepkisi H de +x yönünde pozitif — yani sağa iten +10 kN'lik yükü
+# tek başına taşıyan mesnetin tepkisi −10 kN'dir.
+def _eksenel(supports, loads, spans=(3.0, 3.0), **kw):
+    return BeamModel(spans=list(spans), EI=[30_000.0] * len(spans),
+                     supports=list(supports), loads=loads, **kw)
+
+
+def test_eksenel_izostatik_tekil_yuk():
+    """Tek yatay tutulu mesnet: N, yükün solunda P, sağında 0 (kapalı çözüm)."""
+    m = _eksenel(["pin", "roller", "roller"], [Load(2, "axial_point", [10.0, 1.5])])
+    r = solve(m)
+    assert _N(r, 0.0) == pytest.approx([10.0])
+    assert _N(r, 4.5) == pytest.approx([10.0, 0.0])   # yük noktasında sıçrama
+    assert _N(r, 6.0) == pytest.approx([0.0])
+    assert r["reactions"][0]["H"] == pytest.approx(-10.0, abs=1e-9)
+    # Yatayda serbest mesnetlerde H sütunu boş kalmalı (0.0 değil None).
+    assert r["reactions"][1]["H"] is None and r["reactions"][2]["H"] is None
+
+
+def test_eksenel_hiperstatik_tekil_yuk():
+    """İki pin arasında P: tepkiler uzunlukla ters orantılı (çubuk kapalı çözümü).
+
+    L1=2, L2=4, x=1'de P=+12 → R_sol = −P·b/L = −10, R_sağ = −P·a/L = −2.
+    Sabit EA varsayımı bu vakada sonucu etkilemez: paylaşım yalnız uzunluk
+    oranına bağlıdır, dolayısıyla test EA=1 kabulünü değil çözümü sınar.
+    """
+    m = _eksenel(["pin", "roller", "pin"], [Load(1, "axial_point", [12.0, 1.0])],
+                 spans=(2.0, 4.0))
+    r = solve(m)
+    assert r["reactions"][0]["H"] == pytest.approx(-10.0, rel=1e-9)
+    assert r["reactions"][2]["H"] == pytest.approx(-2.0, rel=1e-9)
+    assert _N(r, 1.0) == pytest.approx([10.0, -2.0])  # çekme → basınç
+
+
+def test_eksenel_yayili_yuk_ucgen_diyagram():
+    """n=+5 kN/m tüm kirişte, tek tutulu uç: N mesnette 30, serbest uçta 0."""
+    m = _eksenel(["pin", "roller", "roller"],
+                 [Load(1, "axial_udl", [5.0]), Load(2, "axial_udl", [5.0])])
+    r = solve(m)
+    assert _N(r, 0.0) == pytest.approx([30.0])
+    assert _N(r, 3.0) == pytest.approx([15.0, 15.0])  # sürekli: sıçrama yok
+    assert _N(r, 6.0) == pytest.approx([0.0], abs=1e-9)
+    assert r["reactions"][0]["H"] == pytest.approx(-30.0, rel=1e-9)
+
+
+def test_eksenel_basinc_isareti():
+    """Sola (−) yük basınç üretir: N negatif, tepki pozitif (+x)."""
+    m = _eksenel(["pin", "roller"], [Load(1, "axial_point", [-10.0, 1.5])],
+                 spans=(3.0,))
+    r = solve(m)
+    assert r["Nmin"] == pytest.approx(-10.0, rel=1e-9)
+    assert r["reactions"][0]["H"] == pytest.approx(10.0, rel=1e-9)
+
+
+def test_eksenel_mafsal_normal_kuvveti_aktarir():
+    """Mafsal MOMENT mafsalıdır: N diyagramını değiştirmemeli.
+
+    Aynı eksenel yük, (a) mafsalsız, (b) açıklık içi mafsallı, (c) düğüm
+    mafsallı modellerde aynı N'i vermeli. Mafsal eksenel serbestlik açarsa bu
+    test kırılır.
+    """
+    yuk = [Load(2, "axial_point", [10.0, 1.5])]
+    r_yok = solve(_eksenel(["pin", "roller", "roller"], list(yuk)))
+    r_ic = solve(_eksenel(["pin", "roller", "roller"], list(yuk),
+                          span_hinges=[(1, 1.5)]))
+    r_dugum = solve(_eksenel(["fixed", "roller", "roller"], list(yuk), hinges=[2]))
+    for r in (r_ic, r_dugum):
+        assert _N(r, 4.5) == pytest.approx([10.0, 0.0])
+        assert r["Nmax"] == pytest.approx(r_yok["Nmax"], rel=1e-9)
+        assert r["reactions"][0]["H"] == pytest.approx(-10.0, rel=1e-9)
+
+
+def test_eksenel_yuk_mesnet_uzerinde():
+    """Yük tam yatay tutulu düğümde: mesnet tümünü alır, N her yerde sıfır."""
+    m = _eksenel(["pin", "pin", "roller"], [Load(1, "axial_point", [10.0, 3.0])])
+    r = solve(m)
+    assert r["Nmax"] == pytest.approx(0.0, abs=1e-9)
+    assert r["Nmin"] == pytest.approx(0.0, abs=1e-9)
+    assert r["reactions"][1]["H"] == pytest.approx(-10.0, rel=1e-9)
+
+
+def test_eksenel_yatay_mesnet_yoksa_hata():
+    """Yalnız kayıcı mesnet varken eksenel yük mekanizmadır; anlaşılır hata gelir.
+
+    Düşey sistem çözülebilir olduğu için hatayı `static_degree()` değil eksenel
+    çözücü yakalar (PyCBA yatay DOF tutmaz).
+    """
+    m = _eksenel(["roller", "roller", "roller"],
+                 [Load(1, "udl", [20.0]), Load(1, "axial_point", [10.0, 1.5])])
+    with pytest.raises(SolverError, match="yatayda tutulu mesnet yok"):
+        solve(m)
+
+
+def test_eksenel_yuk_dusey_sonuclari_etkilemez():
+    """Birinci mertebe teoride eksenel yük M/V/D'yi değiştirmez.
+
+    Referans problem (2×6 m, 20 kN/m) üzerine eksenel yük eklendiğinde eğilme
+    sonuçları birebir aynı kalmalı — eksenel yükün yanlışlıkla PyCBA'nın LM
+    matrisine sızması bu testi kırar.
+    """
+    dusey = [Load(1, "udl", [20.0]), Load(2, "udl", [20.0])]
+    r_saf = solve(_eksenel(["pin", "roller", "pin"], list(dusey), spans=(6.0, 6.0)))
+    r_eks = solve(_eksenel(["pin", "roller", "pin"],
+                           dusey + [Load(1, "axial_point", [50.0, 3.0])],
+                           spans=(6.0, 6.0)))
+    for anahtar in ("Mmax", "Mmin", "Vmax", "Vmin", "Dmax", "Dmin"):
+        assert r_eks[anahtar] == pytest.approx(r_saf[anahtar], rel=1e-12, abs=1e-12)
+    # İki uç pin olduğundan eksenel sistem hiperstatiktir: P=50, a=3, b=9,
+    # L=12 → sol parçada N = P·b/L = 37,5 kN çekme.
+    assert r_eks["Nmax"] == pytest.approx(37.5, rel=1e-9)
+
+
+def test_eksenel_yuk_yokken_diyagram_sifir():
+    """Eksenel yük yoksa N sıfır, tutulu düğümlerde H sıfır (hata değil)."""
+    m = _eksenel(["pin", "roller", "pin"], [Load(1, "udl", [20.0])])
+    ax = solve_axial(m)
+    assert np.allclose(ax["N"], 0.0)
+    assert ax["H"] == {1: 0.0, 3: 0.0}
