@@ -12,8 +12,9 @@ import streamlit as st
 from plotly.subplots import make_subplots
 
 from core import (
-    AXIAL_KINDS, BeamModel, Load, LOAD_TYPES, SUPPORT_TYPES,
-    check_load_position, solve, SolverError,
+    AXIAL_KINDS, BeamModel, KATSAYI_SETLERI, Load, LOAD_CLASSES, LOAD_TYPES,
+    SUPPORT_TYPES, VARSAYILAN_SET, check_load_position, solve, solve_envelope,
+    SolverError,
 )
 from ui_cizim import NORMAL_KUVVET_YESILI, ciz_sema
 from ui_dil import DILLER, VARSAYILAN_DIL, cevir
@@ -251,6 +252,19 @@ with st.sidebar:
                     f"{label} [{unit}]", value=None, placeholder="0", key=key, **kw
                 )
             )
+        # Yük sınıfı (G/Q) yalnız zarf hesabını ilgilendirir (bkz. core/zarf.py);
+        # tek çözümün sonucunu değiştirmez. Eksenel yükler patternlenmediği için
+        # sorulmaz — core doğrulaması da eksenel Q'yu reddeder.
+        if kind in AXIAL_KINDS:
+            sinif = "G"
+        else:
+            sinif_key = f"lv_sinif_{st.session_state.add_nonce}"
+            param_keys.append(sinif_key)
+            sinif = st.radio(
+                t("yuk.sinif"), LOAD_CLASSES,
+                format_func=lambda s: t(f"sinif.{s}"), horizontal=True,
+                help=t("yuk.sinif_yardim"), key=sinif_key,
+            )
         submitted = st.form_submit_button(t("yuk.ekle"), width="stretch")
     # Boş bırakılan (None) alanları 0.0 kabul et — doğrulama/çözüm float bekler.
     values = [0.0 if v is None else v for v in values]
@@ -264,7 +278,9 @@ with st.sidebar:
         elif pos_err:
             st.error(pos_err)
         else:
-            st.session_state.loads.append(Load(span=load_span, kind=kind, values=values))
+            st.session_state.loads.append(
+                Load(span=load_span, kind=kind, values=values, sinif=sinif)
+            )
             # Sayaç artınca alan anahtarları değişir → widget'lar boş (placeholder
             # "0") yeniden kurulur; eski anahtarlar session_state'te birikmesin diye
             # temizlenir. Böylece sonraki yük yine temiz başlar (üstüne yazma tuzağı yok).
@@ -290,6 +306,38 @@ with st.sidebar:
     goster_V = st.toggle(t("gorunum.V"), value=True, key="goster_V")
     goster_M = st.toggle(t("gorunum.M"), value=True, key="goster_M")
     goster_D = st.toggle(t("gorunum.D"), value=True, key="goster_D")
+
+    # ------------------------------------------------------- 5. yük düzenleri
+    # Zarf, hareketli yükü açıklıklara ayrı ayrı koyarak hesaplanır (core/zarf.py)
+    # ve N+2 çözüm demektir; varsayılan olarak KAPALI, kullanıcı isteyince açılır.
+    st.header(t("bolum.zarf"))
+    zarf_ac = st.toggle(t("zarf.hesapla"), value=False, key="zarf_ac",
+                        help=t("zarf.yardim"))
+    katsayilar = KATSAYI_SETLERI[VARSAYILAN_SET]
+    if zarf_ac:
+        secim = st.selectbox(
+            t("zarf.yonetmelik"), list(KATSAYI_SETLERI) + ["ozel"],
+            format_func=lambda s: t(f"yonetmelik.{s}"), key="zarf_set",
+        )
+        if secim == "ozel":
+            # Katsayı alanları YALNIZ "Özel"de çizilir. Bir yönetmelik seçiliyken
+            # de düzenlenebilir olsalardı, başlıkta "Eurocode" yazarken içerik
+            # Eurocode olmayabilirdi; ayrıca alanları devre dışı göstermek gece
+            # modunda −/+ ikonlarını kaybettiriyor (bkz. CLAUDE.md).
+            katsayilar = tuple(
+                st.number_input(
+                    t(etiket), min_value=0.0, max_value=5.0, value=float(v),
+                    step=0.05, format="%.2f", key=f"gamma_{etiket}",
+                )
+                for etiket, v in zip(
+                    ("zarf.gG_maks", "zarf.gG_min", "zarf.gQ_maks", "zarf.gQ_min"),
+                    KATSAYI_SETLERI[VARSAYILAN_SET],
+                )
+            )
+        else:
+            katsayilar = KATSAYI_SETLERI[secim]
+        st.caption(t("zarf.ozet", gmaks=katsayilar[0], gmin=katsayilar[1],
+                     qmaks=katsayilar[2], qmin=katsayilar[3]))
 
     # -------------------------------------------------------------- lisans
     # AGPL 13. madde: yazılım ağ üzerinden kullandırıldığında (Streamlit Cloud)
@@ -324,8 +372,10 @@ else:
             f"{p}={v:g} {PARAM_UNITS[p]}" for p, v in zip(params, ld.values)
         )
         sig = f"{i}_{ld.span}_" + "-".join(f"{v:g}" for v in ld.values)
+        # Sınıf KISA koduyla (G/Q) yazılır: kod modelin verisidir, "kN" gibi
+        # dilden bağımsızdır; uzun adı düzenleme formundaki seçim gösterir.
         baslik = t("liste.satir", i=i + 1, ad=t(f"yuk.{ld.kind}"),
-                   sp=ld.span, ayrinti=desc)
+                   sp=ld.span, sinif=ld.sinif, ayrinti=desc)
         with st.expander(baslik):
             # Açıklık seçimi form DIŞINDA (ekleme formundaki desenin aynısı).
             # Form İÇİNDE olduğunda değişiklik ancak gönderimde işleniyor, o
@@ -367,6 +417,16 @@ else:
                     new_values.append(
                         st.number_input(f"{label} [{unit}]", value=val, key=key, **kw)
                     )
+                if ld.kind in AXIAL_KINDS:
+                    yeni_sinif = "G"  # eksenel yük patternlenmez (ekleme formuyla aynı)
+                else:
+                    yeni_sinif = st.radio(
+                        t("yuk.sinif"), LOAD_CLASSES,
+                        index=LOAD_CLASSES.index(ld.sinif)
+                        if ld.sinif in LOAD_CLASSES else 0,
+                        format_func=lambda s: t(f"sinif.{s}"), horizontal=True,
+                        help=t("yuk.sinif_yardim"), key=f"edit_sinif_{sig}",
+                    )
                 bc1, bc2 = st.columns(2)
                 kaydet = bc1.form_submit_button(t("liste.kaydet"), width="stretch")
                 sil = bc2.form_submit_button(t("liste.sil"), width="stretch")
@@ -387,7 +447,8 @@ else:
                     st.error(pos_err)
                 else:
                     st.session_state.loads[i] = Load(
-                        span=new_span, kind=ld.kind, values=new_values
+                        span=new_span, kind=ld.kind, values=new_values,
+                        sinif=yeni_sinif,
                     )
                     st.rerun()
 
@@ -529,6 +590,11 @@ _KIRMIZI, _KIRMIZI_DOLGU = "#d62728", "rgba(214,39,40,0.12)"
 _g_yazi = "#E9E7E2" if karanlik else "#1C1B19"
 _g_izgara = "rgba(255,255,255,0.10)" if karanlik else "rgba(28,27,25,0.08)"
 _g_sifir = "rgba(233,231,226,0.55)" if karanlik else "rgba(28,27,25,0.45)"
+# Eksen yazıları AÇIKÇA renklenir: Streamlit'in plotly şablonu bunları
+# rgb(128,132,149) yapar ve layout `font=` bunu EZMEZ — ölçülen kontrast her iki
+# modda da AA altında (≈3.8:1 / 4.2:1) kalıyordu. Zarf figürü de aynı sözlüğü
+# kullanır, bu yüzden figür bloklarının DIŞINDA durur.
+_eksen_yazi = dict(tickfont=dict(color=_g_yazi), title_font=dict(color=_g_yazi))
 # Paneller "4. Görünüm" toggle'larına göre süzülür; kapatılan panel hiç
 # eklenmediği için figür yüksekliği ve x ekseni başlığı kendiliğinden uyar.
 paneller = []
@@ -554,6 +620,31 @@ if goster_D:
         (t("panel.sehim"), "mm", result["x"], result["D"] * 1000.0,
          _KIRMIZI, None, False)
     )
+
+# Mesnet çizgileri hem kesit tesiri hem zarf figüründe kullanılır; harfler
+# ŞEMAYLA aynı kuralla üretilir (bkz. ui_cizim.ciz_sema): "free" düğümler
+# atlanır, çizilen mesnetler sıfırdan sırayla harflenir. İki görsel farklı harf
+# gösterirse tepki tablosuyla eşleştirme bozulur.
+# Izgaradan belirgin, kiriş çizgisinden silik: yapı ipucu, veri değil.
+_g_mesnet = "rgba(255,255,255,0.22)" if karanlik else "rgba(28,27,25,0.18)"
+_node_x = np.concatenate([[0.0], np.cumsum(model.spans)])
+
+
+def _mesnet_cizgileri(fig):
+    """Mesnet konumlarına düşey kesikli çizgi + üst satıra harf ekle."""
+    for sira, (idx_node, _tip) in enumerate(
+        (j, s) for j, s in enumerate(model.supports) if s != "free"
+    ):
+        x_m = float(_node_x[idx_node])
+        fig.add_vline(x=x_m, line=dict(color=_g_mesnet, width=1, dash="dot"),
+                      row="all", col=1)
+        fig.add_annotation(
+            x=x_m, y=1.0, yref="y domain", yanchor="bottom", yshift=2,
+            text=chr(ord("A") + sira), showarrow=False,
+            font=dict(color=_g_yazi, size=11), row=1, col=1,
+        )
+
+
 n_panel = len(paneller)
 if n_panel == 0:
     # Hepsi kapalı: boş figür çizmek yerine nereden açılacağını söyle.
@@ -575,24 +666,7 @@ else:
         if ters:  # moment: sagging-pozitif aşağıda (PyCBA konvansiyonu korunur)
             fig.update_yaxes(autorange="reversed", row=i, col=1)
 
-    # --- Mesnet çizgileri: diyagramı kirişle hizalar -------------------------
-    # Harfler ŞEMAYLA aynı kuralla üretilir (bkz. ui_cizim.ciz_sema): "free"
-    # düğümler atlanır, çizilen mesnetler sıfırdan sırayla harflenir. İki görsel
-    # farklı harf gösterirse tepki tablosuyla eşleştirme bozulur.
-    # Izgaradan belirgin, kiriş çizgisinden silik: yapı ipucu, veri değil.
-    _g_mesnet = "rgba(255,255,255,0.22)" if karanlik else "rgba(28,27,25,0.18)"
-    _node_x = np.concatenate([[0.0], np.cumsum(model.spans)])
-    for sira, (idx_node, _tip) in enumerate(
-        (j, s) for j, s in enumerate(model.supports) if s != "free"
-    ):
-        x_m = float(_node_x[idx_node])
-        fig.add_vline(x=x_m, line=dict(color=_g_mesnet, width=1, dash="dot"),
-                      row="all", col=1)
-        fig.add_annotation(
-            x=x_m, y=1.0, yref="y domain", yanchor="bottom", yshift=2,
-            text=chr(ord("A") + sira), showarrow=False,
-            font=dict(color=_g_yazi, size=11), row=1, col=1,
-        )
+    _mesnet_cizgileri(fig)
 
     # --- Ekstrem işaretleri --------------------------------------------------
     # Metrik kartları ekstrem DEĞERİ veriyor ama konumunu vermiyor; işaretçi
@@ -639,10 +713,6 @@ else:
     fig.update_xaxes(title_text=t("diyagram.eksen_x"), row=n_panel, col=1)
     # fixedrange=True: dokunmatik ekranda grafik zoom/pan/pinch yapmaz — parmak
     # hareketi sayfayı kaydırır, grafiği değil. Hover ipuçları çalışmaya devam eder.
-    # tickfont/title_font AÇIKÇA verilir: Streamlit'in plotly şablonu eksen
-    # yazılarını rgb(128,132,149) yapar ve layout `font=` bunu EZMEZ — ölçülen
-    # kontrast her iki modda da AA altında (≈3.8:1 / 4.2:1) kalıyordu.
-    _eksen_yazi = dict(tickfont=dict(color=_g_yazi), title_font=dict(color=_g_yazi))
     fig.update_xaxes(gridcolor=_g_izgara, zerolinecolor=_g_sifir, linecolor=_g_izgara,
                      fixedrange=True, **_eksen_yazi)
     fig.update_yaxes(gridcolor=_g_izgara, zerolinecolor=_g_sifir, fixedrange=True,
@@ -699,3 +769,154 @@ for r in result["reactions"]:
 # st.dataframe canvas tabanlı olduğu için gece modunda renklenmez; temalanabilir
 # HTML tablo kullanılır (bkz. ui_tema.tepki_tablosu).
 tepki_tablosu(rows)
+
+# ---------------------------------------------------------- zarf diyagramları
+# Yukarıdaki "Sonuçlar" bölümü KARAKTERİSTİK (katsayısız) yüklerle tek bir
+# çözümdür; buradaki zarf ise katsayılı yüklerle N+2 düzenin sarmalıdır. İkisi
+# yan yana durur (sekme değil) — kullanıcı tek çözümü de zarfı da aynı anda
+# görebilsin. Kenar çubuğundaki anahtar kapalıysa hiç hesaplanmaz.
+if zarf_ac:
+    st.divider()
+    st.subheader(t("zarf.baslik"))
+    st.caption(t("zarf.aciklama"))
+
+    def _duzen_adi(d):
+        """Düzenin okunur adı; kenetlenmiş (yönetensiz) uçta açıklama."""
+        if d is None:
+            return t("duzen.yok")
+        if d.anahtar == "mesnet":
+            return t("duzen.mesnet", n=d.dugum)
+        return t(f"duzen.{d.anahtar}")
+
+    def _zarf_kart(col, buyukluk, birim, e_maks, e_min, olcek=1.0):
+        """Zarf kartı: mutlak değerce yöneten uç büyük rakam, diğeri caption'da.
+
+        Kesit tesiri kartlarıyla (bkz. _kart) aynı kural; farkı, iki ucun ayrı
+        zarf dizilerinden gelmesi ve caption'a yöneten DÜZENİN eklenmesi.
+        """
+        if abs(e_maks["deger"]) >= abs(e_min["deger"]):
+            bas, dom, alt_anahtar, alt = "kart.maks", e_maks, "kart.min", e_min
+        else:
+            bas, dom, alt_anahtar, alt = ("kart.min_baslik", e_min,
+                                          "kart.maks_alt", e_maks)
+        col.metric(t(bas, ad=t(f"buyukluk.{buyukluk}"), birim=birim),
+                   _biciml(dom["deger"], olcek))
+        col.caption(
+            t("kart.konum", x=dom["x"]) + "  \n"
+            + t(alt_anahtar, deger=_biciml(alt["deger"], olcek), x=alt["x"])
+            + "  \n" + t("zarf.yoneten", ad=_duzen_adi(dom["duzen"]))
+        )
+
+    try:
+        zarf = solve_envelope(model, katsayilar, dil)
+    except SolverError as e:
+        # Geometri düzenden düzene değişmediği için buraya normalde düşülmez;
+        # yine de sessiz kalmak yerine hata gösterilir.
+        st.error(str(e))
+    else:
+        st.caption(t(
+            "zarf.duzen_sayisi", n=len(zarf["kombinasyonlar"]),
+            ozet=t("zarf.ozet", gmaks=katsayilar[0], gmin=katsayilar[1],
+                   qmaks=katsayilar[2], qmin=katsayilar[3]),
+        ))
+        if not zarf["hareketli_var"]:
+            st.info(t("zarf.hareketli_yok"))
+
+        z_cols = st.columns(3)
+        _zarf_kart(z_cols[0], "moment", "kNm",
+                   zarf["ekstrem"]["Mmax"], zarf["ekstrem"]["Mmin"])
+        _zarf_kart(z_cols[1], "kesme", "kN",
+                   zarf["ekstrem"]["Vmax"], zarf["ekstrem"]["Vmin"])
+        _zarf_kart(z_cols[2], "sehim", "mm",
+                   zarf["ekstrem"]["Dmax"], zarf["ekstrem"]["Dmin"], olcek=1000.0)
+        st.caption(t("zarf.kenetleme"))
+
+        # Paneller "4. Görünüm" anahtarlarını izler (kesit tesiri figürüyle aynı
+        # kural); normal kuvvet zarfa girmez — eksenel yük patternlenmiyor.
+        z_paneller = []
+        if goster_V:
+            z_paneller.append((t("panel.kesme"), "kN", zarf["Vmax"], zarf["Vmin"], False))
+        if goster_M:
+            z_paneller.append((t("panel.moment"), "kNm", zarf["Mmax"], zarf["Mmin"], True))
+        if goster_D:
+            z_paneller.append((t("panel.sehim"), "mm",
+                               zarf["Dmax"] * 1000.0, zarf["Dmin"] * 1000.0, False))
+        if not z_paneller:
+            st.info(t("diyagram.hepsi_kapali"))
+        else:
+            z_fig = make_subplots(rows=len(z_paneller), cols=1,
+                                  shared_xaxes=True, vertical_spacing=0.05)
+            for i, (ad, birim, y_maks, y_min, ters) in enumerate(z_paneller, start=1):
+                # SIRA ÖNEMLİ: fill="tonexty" bir önceki İZE kadar doldurur,
+                # bu yüzden alt zarf önce eklenir. İkisi arasındaki taralı bant
+                # "her düzenin sonucu bu aralıkta" demektir.
+                for etiket, y, dolgu in (
+                    (t("zarf.panel_min", ad=ad), y_min, None),
+                    (t("zarf.panel_maks", ad=ad), y_maks, _KIRMIZI_DOLGU),
+                ):
+                    z_fig.add_trace(
+                        go.Scatter(
+                            x=zarf["x"], y=y, mode="lines", name=etiket,
+                            line=dict(color=_KIRMIZI, width=1.6),
+                            fill="tonexty" if dolgu else None, fillcolor=dolgu,
+                            hovertemplate=f"{etiket}: %{{y:.4g}} {birim}<extra></extra>",
+                        ),
+                        row=i, col=1,
+                    )
+                z_fig.add_hline(y=0, line=dict(color=_g_sifir, width=1), row=i, col=1)
+                z_fig.update_yaxes(title_text=f"{ad} [{birim}]", row=i, col=1)
+                if ters:  # moment: sagging-pozitif aşağıda (kesit tesiriyle aynı)
+                    z_fig.update_yaxes(autorange="reversed", row=i, col=1)
+            _mesnet_cizgileri(z_fig)
+            z_fig.update_xaxes(title_text=t("diyagram.eksen_x"),
+                               row=len(z_paneller), col=1)
+            z_fig.update_xaxes(gridcolor=_g_izgara, zerolinecolor=_g_sifir,
+                               linecolor=_g_izgara, fixedrange=True, **_eksen_yazi)
+            z_fig.update_yaxes(gridcolor=_g_izgara, zerolinecolor=_g_sifir,
+                               fixedrange=True, **_eksen_yazi)
+            z_fig.update_layout(
+                title=dict(text=t("zarf.diyagram_baslik"), y=0.99, yanchor="top",
+                           font=dict(color=_g_yazi)),
+                margin=dict(t=70),
+                height=240 * len(z_paneller) + 90,
+                showlegend=False,
+                paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+                font=dict(color=_g_yazi),
+            )
+            st.plotly_chart(z_fig, width="stretch", config={"displayModeBar": False})
+
+        st.download_button(
+            t("csv.zarf_buton"),
+            _diyagram_csv(
+                [t("csv.x"), t("csv.moment_maks"), t("csv.moment_min"),
+                 t("csv.kesme_maks"), t("csv.kesme_min"),
+                 t("csv.sehim_maks"), t("csv.sehim_min")],
+                zarf["x"], zarf["Mmax"], zarf["Mmin"], zarf["Vmax"], zarf["Vmin"],
+                zarf["Dmax"] * 1000.0, zarf["Dmin"] * 1000.0,
+            ),
+            file_name=t("csv.zarf_dosya"),
+            mime="text/csv",
+        )
+
+        st.markdown(f"**{t('zarf.tepki_baslik')}**")
+        # Mesnet kalkması yalnız zarfla görünür: tek çözümde pozitif olan bir
+        # tepki, hareketli yük komşu açıklığa alındığında negatife dönebilir.
+        kalkan = [str(r["node"]) for r in zarf["reactions"]
+                  if r["Vmin"] is not None and r["Vmin"] < -1e-9]
+        if kalkan:
+            st.warning(t("zarf.kalkma", dugumler=", ".join(kalkan)))
+        z_rows = []
+        for r in zarf["reactions"]:
+            z_row = {
+                t("tepki.dugum"): r["node"],
+                t("tepki.konum"): round(r["x"], 3),
+                t("tepki.dusey_maks"): "—" if r["Vmax"] is None else f"{r['Vmax']:.3f}",
+                t("tepki.dusey_min"): "—" if r["Vmin"] is None else f"{r['Vmin']:.3f}",
+            }
+            if has_fixed:
+                z_row[t("tepki.moment_maks")] = (
+                    "—" if r["Mmax"] is None else f"{r['Mmax']:.3f}")
+                z_row[t("tepki.moment_min")] = (
+                    "—" if r["Mmin"] is None else f"{r['Mmin']:.3f}")
+            z_rows.append(z_row)
+        tepki_tablosu(z_rows)

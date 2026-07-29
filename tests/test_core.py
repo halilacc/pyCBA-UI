@@ -8,10 +8,15 @@ görmek.
 Çalıştırma:  .venv\\Scripts\\python.exe -m pytest -q
 """
 
+from dataclasses import replace
+
 import numpy as np
 import pytest
 
-from core import BeamModel, Load, SolverError, solve
+from core import (
+    BeamModel, Load, SolverError, kombinasyonlar, olcekli_model, solve,
+    solve_envelope,
+)
 from core.axial import solve_axial
 
 TOL = 1e-6  # bağıl tolerans (çözümler analitik; sayısal gürültü çok küçük)
@@ -521,6 +526,179 @@ def test_sehim_dizisinde_eleman_ucu_bosluk_yok():
     for xi in np.unique(x):
         degerler = D[np.abs(x - xi) < 1e-12]
         assert np.ptp(degerler) < 1e-4 * olcek, f"x={xi} m'de sehim sıçraması var"
+
+
+# ------------------------------------------------- yük düzenleri / zarf (core/zarf.py)
+def _zarf_modeli(g=20.0, q=10.0, spans=(6.0, 6.0), supports=("pin", "pin", "pin")):
+    """Her açıklığında g (sabit) ve q (hareketli) UDL bulunan kiriş."""
+    n = len(spans)
+    yukler = [Load(i + 1, "udl", [g], "G") for i in range(n)]
+    if q:
+        yukler += [Load(i + 1, "udl", [q], "Q") for i in range(n)]
+    return BeamModel(spans=list(spans), EI=[30_000.0] * n,
+                     supports=list(supports), loads=yukler)
+
+
+def test_zarf_analitik_iki_aciklik():
+    """2×6 m, G=20 + Q=10 kN/m, γ=(1, 1, 1, 0) — kapalı çözümle doğrulanır.
+
+    İki eşit açıklıkta (uçlar mafsallı) UDL'ler w1, w2 için üç-moment
+    denkleminden M_B = -(w1 + w2)·L²/16.
+      · "tüm" düzeni  (w1 = w2 = 30) → M_B = -135 kNm  (zarfın minimumu)
+      · "tek" düzeni  (w1 = 30, w2 = 20) → M_B = -112.5, R_A = 30·3 - 112.5/6
+        = 71.25 kN; açıklık momenti x = R_A/w1 = 2.375 m'de tepe yapar ve
+        M = R_A²/(2w1) = 84.609 kNm olur — zarfın maksimumu budur.
+    "Hepsi yüklü" varsayan biri açıklıkta 84.6 yerine 50.6·1.5 = 75.9 görürdü.
+    """
+    z = solve_envelope(_zarf_modeli(), katsayilar=(1.0, 1.0, 1.0, 0.0))
+    e_maks, e_min = z["ekstrem"]["Mmax"], z["ekstrem"]["Mmin"]
+    # İstasyon ızgarası (açıklık başına 100 aralık) tam 2.375 m'ye düşmez.
+    assert e_maks["deger"] == pytest.approx(84.609, abs=0.05)
+    assert e_maks["x"] == pytest.approx(2.375, abs=0.06)
+    assert e_maks["duzen"].anahtar == "tek"
+    assert e_min["deger"] == pytest.approx(-135.0, rel=1e-4)
+    assert e_min["x"] == pytest.approx(6.0, abs=1e-9)
+    assert e_min["duzen"].anahtar == "tum"
+    # Zarf her kesitte kendi düzeninin sonucunu sarmalı.
+    assert np.all(z["Mmax"] >= z["Mmin"] - 1e-9)
+
+
+def test_zarf_mesnet_kalkmasini_yakalar():
+    """Yalnız 2. açıklık yüklüyken R_A = -7.5 kN (mesnet kalkar).
+
+    M_B = -(0 + 20)·36/16 = -45 kNm, R_A = M_B/L = -7.5 kN. Tek bir "hepsi
+    yüklü" çözümünde R_A = +45 kN çıkar ve ankraj ihtiyacı hiç görünmez.
+    """
+    m = BeamModel(spans=[6.0, 6.0], EI=[30_000.0] * 2,
+                  supports=["pin", "pin", "pin"],
+                  loads=[Load(1, "udl", [20.0], "Q"), Load(2, "udl", [20.0], "Q")])
+    z = solve_envelope(m, katsayilar=(1.0, 1.0, 1.0, 0.0))
+    dugum1 = z["reactions"][0]
+    assert dugum1["node"] == 1
+    assert dugum1["Vmin"] == pytest.approx(-7.5, rel=1e-4)
+    assert dugum1["Vmin_duzen"].anahtar == "cift"  # yalnız 2. açıklık yüklü
+    # "tek" düzeni (yalnız 1. açıklık): R_A = wL/2 + M_B/L = 60 - 7.5 = 52.5 kN
+    assert dugum1["Vmax"] == pytest.approx(52.5, rel=1e-4)
+    assert dugum1["Vmax_duzen"].anahtar == "tek"
+
+
+@pytest.mark.parametrize("spans, supports", [
+    ([6.0, 6.0], ["pin", "pin", "pin"]),
+    ([5.0, 7.0, 6.0], ["pin", "pin", "pin", "pin"]),
+    ([4.0, 6.0, 3.0], ["fixed", "pin", "pin", "free"]),  # ankastre + konsol
+])
+def test_zarf_pycba_load_pattern_ile_ayni(spans, supports):
+    """Kendi zarfımız PyCBA `LoadPattern` ile BİREBİR aynı M/V vermeli.
+
+    Zarfı kendimiz hesaplıyoruz (sehim zarfı, kullanıcı düğüm numarası ve
+    Gerber uyumu için — bkz. core/zarf.py); bu test, o kazanımların sayısal bir
+    sapma pahasına gelmediğini garanti eder. Katsayılar Eurocode.
+    """
+    import pycba as cba
+
+    g, q, kats = 20.0, 10.0, (1.35, 1.00, 1.50, 0.00)
+    n = len(spans)
+    EI = [30_000.0] * n
+    z = solve_envelope(_zarf_modeli(g, q, spans, supports), katsayilar=kats)
+
+    lp = cba.LoadPattern(cba.BeamAnalysis(L=spans, EI=EI, supports=supports, LM=None))
+    lp.set_dead_loads([[i + 1, 1, g, 0, 0] for i in range(n)], kats[0], kats[1])
+    lp.set_live_loads([[i + 1, 1, q, 0, 0] for i in range(n)], kats[2], kats[3])
+    env = lp.analyze()
+
+    assert np.allclose(env.x, z["x"])
+    for ad in ("Mmax", "Mmin", "Vmax", "Vmin"):
+        assert np.allclose(getattr(env, ad), z[ad], atol=1e-9), ad
+
+
+def test_zarf_sifira_kenetlenir():
+    """Konsolda M hiçbir kesitte pozitif değil: `Mmax` sıfıra kenetlenir.
+
+    PyCBA geleneği korunuyor (`results.py:468` zarfı sıfır dizisiyle başlatır):
+    zarf ekseni sarar, `Mmax >= 0` ve `Mmin <= 0` her zaman doğrudur. Ankastre
+    uçta gerçek moment −180 kNm'dir ve `Mmin`de görünür; `Mmax` orada 0 kalır.
+    """
+    m = BeamModel(spans=[4.0], EI=[30_000.0], supports=["fixed", "free"],
+                  loads=[Load(1, "udl", [10.0], "Q")])
+    z = solve_envelope(m, katsayilar=(1.35, 1.0, 1.5, 0.0))
+    assert np.all(z["Mmax"] == 0.0)          # hiçbir düzende pozitif moment yok
+    assert np.all(z["Mmin"] <= 1e-9)
+    i_ank = int(np.argmin(z["Mmin"]))        # ankastre uç
+    assert z["Mmin"][i_ank] == pytest.approx(-1.5 * 10.0 * 16 / 2, rel=1e-4)
+    assert z["Mmax"][i_ank] == 0.0           # kenetleme: gerçek değer negatif
+    assert z["ekstrem"]["Mmax"]["deger"] == 0.0
+    assert z["ekstrem"]["Mmin"]["duzen"] is not None
+    assert z["ekstrem"]["Mmin"]["x"] == pytest.approx(0.0, abs=1e-9)
+
+
+def test_zarf_duzenleri_kullanici_acikliklarina_gore_kurulur():
+    """Açıklık içi mafsal düzen SAYISINI değiştirmemeli.
+
+    PyCBA patternlemeyi genişletilmiş açıklıklara uygular: 2 açıklıklı bir
+    kirişte açıklık içi mafsal 3 açıklık gösterip 5 düzen üretir ve "tek/çift
+    açıklıklar" kullanıcının numaralandırmasıyla örtüşmez. Bizde düzenler
+    kullanıcı açıklıkları üzerinde kurulur, bölme her düzenin İÇİNDE yapılır.
+    """
+    kats = (1.35, 1.0, 1.5, 0.0)
+    m = _zarf_modeli()  # 2 açıklık -> tum / tek / cift
+    m_mafsal = BeamModel(spans=[6.0, 6.0], EI=[30_000.0] * 2,
+                         supports=["fixed", "free", "pin"],
+                         span_hinges=[(1, 4.0)],
+                         loads=list(m.loads))
+    assert [d.anahtar for d in kombinasyonlar(m, kats)] == ["tum", "tek", "cift"]
+    assert ([d.spans for d in kombinasyonlar(m_mafsal, kats)]
+            == [(1, 2), (1,), (2,)])
+    z = solve_envelope(m_mafsal, katsayilar=kats)
+    assert len(z["kombinasyonlar"]) == 3
+    # Genişletme çözümün içinde: tepkiler kullanıcı düğüm no'suyla döner
+    # (mafsalın doğurduğu serbest düğüm tepki listesine girmez).
+    assert [r["node"] for r in z["reactions"]] == [1, 3]
+
+
+def test_zarf_cokmeyi_her_duzende_korur():
+    """Çökme kalıcı etkidir: patternlenmez, katsayı yemez, her düzende durur."""
+    kats = (1.35, 1.0, 1.5, 0.0)
+    m = _zarf_modeli()
+    m_cokme = replace(m, settlements={2: -0.02})
+    for d in kombinasyonlar(m_cokme, kats):
+        assert olcekli_model(m_cokme, d, kats).settlements == {2: -0.02}
+    # Çökme sonucu gerçekten etkiliyor (sessizce düşmüyor): hiperstatik sistemde
+    # mesnet çökmesi moment doğurur, zarf da bunu görmeli.
+    z, z_cokme = solve_envelope(m, kats), solve_envelope(m_cokme, kats)
+    assert not np.allclose(z["Mmin"], z_cokme["Mmin"])
+
+
+def test_zarf_ayirt_edilemeyen_katsayilarda_tek_duzen():
+    """γ'lar yükleri ayırt etmiyorsa bütün düzenler aynıdır — bir kez çözülür."""
+    sabit = _zarf_modeli(q=0.0)  # yalnız G
+    assert len(kombinasyonlar(sabit, (1.0, 1.0, 1.5, 0.0))) == 1
+    # γ_G,maks ≠ γ_G,min: sabit yükün kendisi de patternlenir, düzenler geri gelir.
+    assert len(kombinasyonlar(sabit, (1.35, 1.0, 1.5, 0.0))) == 3
+    assert len(kombinasyonlar(_zarf_modeli(), (1.0, 1.0, 1.5, 0.0))) == 3
+    z = solve_envelope(sabit, katsayilar=(1.0, 1.0, 1.5, 0.0))
+    assert z["hareketli_var"] is False
+    # Tek düzen: zarfın iki ucu da aynı çözümü sarar (sıfır kenetlemesi dışında).
+    r = solve(sabit)
+    assert np.allclose(z["Mmin"], np.minimum(r["M"], 0.0))
+
+
+def test_zarf_yuk_olcekleme_konumlari_bozmaz():
+    """`Load.scaled` yalnız ŞİDDETİ çarpar; a/c konumları olduğu gibi kalır."""
+    trapez = Load(2, "trapezoid", [10.0, 20.0, 1.5, 3.0], "Q").scaled(1.5)
+    assert trapez.values == [15.0, 30.0, 1.5, 3.0]
+    assert (trapez.span, trapez.kind, trapez.sinif) == (2, "trapezoid", "Q")
+    tekil = Load(1, "point", [40.0, 2.0], "Q").scaled(0.0)
+    assert tekil.values == [0.0, 2.0]  # yük sıfırlanır, konumu korunur
+
+
+def test_zarf_yuk_sinifi_dogrulamasi():
+    """Bilinmeyen sınıf ve hareketli (Q) eksenel yük anlaşılır hata vermeli."""
+    m = BeamModel(spans=[6.0], EI=[30_000.0], supports=["fixed", "free"],
+                  loads=[Load(1, "udl", [10.0], "H")])
+    assert any("'H'" in h for h in m.validate()), m.validate()
+    m2 = BeamModel(spans=[6.0], EI=[30_000.0], supports=["fixed", "free"],
+                   loads=[Load(1, "axial_udl", [10.0], "Q")])
+    assert any("eksenel" in h.lower() for h in m2.validate()), m2.validate()
 
 
 # ------------------------------------------------------------------ hata yolları

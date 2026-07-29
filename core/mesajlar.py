@@ -39,6 +39,11 @@ _TR = {
     "yuk_tipi_bilinmeyen": "Yük {i}: bilinmeyen tip {kind!r}",
     "yuk_aciklik_gecersiz": "Yük {i}: açıklık no {sp} geçersiz (1..{n_span}).",
     "yuk_oneki": "Yük {i}: {mesaj}",
+    "yuk_sinifi_gecersiz": "Yük {i}: bilinmeyen yük sınıfı {sinif!r} "
+                           "(geçerli: {adlar}).",
+    "eksenel_yuk_sinifi": "Yük {i}: eksenel yükler hareketli (Q) olarak "
+                          "tanımlanamaz — yük düzenleri yalnız düşey yükleri "
+                          "kapsar. Sınıfı G yapın.",
     "yuk_parametre_sayisi": "'{kind}' yükü {beklenen} parametre bekler "
                             "({adlar}), {verilen} verildi.",
     # --- check_load_position ---
@@ -93,6 +98,11 @@ _EN = {
     "yuk_tipi_bilinmeyen": "Load {i}: unknown type {kind!r}",
     "yuk_aciklik_gecersiz": "Load {i}: span number {sp} is invalid (1..{n_span}).",
     "yuk_oneki": "Load {i}: {mesaj}",
+    "yuk_sinifi_gecersiz": "Load {i}: unknown load class {sinif!r} "
+                           "(valid: {adlar}).",
+    "eksenel_yuk_sinifi": "Load {i}: axial loads cannot be defined as imposed "
+                          "(Q) — load patterning covers vertical loads only. "
+                          "Set the class to G.",
     "yuk_parametre_sayisi": "Load type '{kind}' expects {beklenen} parameters "
                             "({adlar}), but {verilen} were given.",
     "konum_aciklik_disinda": "Position a={a:g} m is outside the span "

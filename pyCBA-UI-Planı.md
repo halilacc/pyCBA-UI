@@ -114,7 +114,14 @@ aşamada verilecek.
 
 # Yük Düzenleri / Zarf Diyagramları — Plan (2026-07-29)
 
-Bir sonraki iş kalemi. Kararlar kullanıcıyla birlikte alındı; kodlama başlamadan
+> **DURUM: uygulandı (2026-07-29).** `core/zarf.py` + arayüz. Plandan iki sapma:
+> (1) sabit yük de açıklık açıklık patternlenir — yüklü açıklıkta γ_G,maks,
+> diğerlerinde γ_G,min (PyCBA `pattern.py` kuralı; γ_G'yi tüm kirişe tek değer
+> vermek zarfı daraltıyordu). (2) "hareketli yük yok" uyarısı `core/mesajlar.py`
+> yerine `ui_dil.py`'de: çekirdek bunu bayrak (`hareketli_var`) olarak bildirir,
+> metni sunum katmanı seçer. Ayrıntı: CLAUDE.md "Mimari".
+
+Kararlar kullanıcıyla birlikte alındı; kodlama başlamadan
 önce buradaki tespitleri okuyun — ikisi ölçümle bulundu, tahminle değil.
 
 ## Neden gerekli
