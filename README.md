@@ -5,8 +5,6 @@ forma giriyorsun; mesnet tepkileri, kesme ve moment diyagramları ve sehim eğri
 anında çıkıyor. Hesabı [PyCBA](https://github.com/ccaprani/pycba) yapıyor, bu
 depo onun üstüne oturan sunum katmanı.
 
-**Canlı sürüm:** https://BURAYA-ADRESI-YAZ.streamlit.app
-
 ![Uygulamanın ekran görüntüsü](docs/ekran.png)
 
 ## Neden yazdım
