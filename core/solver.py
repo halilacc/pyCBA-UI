@@ -58,6 +58,29 @@ def _map_reactions(model: BeamModel, R_vector) -> list:
     return reactions
 
 
+def _sehim_dizisi(vRes) -> np.ndarray:
+    """Eleman sehim dizilerini, uçlardaki sıfır dolguyu onararak birleştir.
+
+    PyCBA her elemanın dizisine ilk ve son istasyonu TEKRARLAYAN birer dolgu
+    girdisi koyar (mesnetteki kesme sıçramasını taşımak için) ama sehimi yalnız
+    iç ızgaraya yazar (`results.py`: `res.D[1:-1] = D`) — dolgu girdileri 0
+    kalır. Mesnette sehim zaten 0 olduğu için bu normalde görünmez; çöken bir
+    mesnette ya da açıklık içi mafsalın doğurduğu serbest düğümde ise sehim
+    eğrisi o noktada sıfıra düşüyor gibi çizilir (PyCBA kendi çiziminde dolguyu
+    `m.D[1:-1]` ile atar).
+
+    Dolgu istasyonu gerçek uç istasyonun AYNISI olduğundan (x[0]==x[1],
+    x[-1]==x[-2]) komşu değerin kopyalanması yaklaşıklık değil, tam düzeltmedir;
+    dizi boyu korunur, böylece M/V ile aynı `x` ızgarası kullanılmaya devam eder.
+    """
+    parcalar = []
+    for mr in vRes:
+        d = np.asarray(mr.D, dtype=float).copy()
+        d[0], d[-1] = d[1], d[-2]
+        parcalar.append(d)
+    return np.concatenate(parcalar)
+
+
 def solve(model: BeamModel, dil: str = None) -> dict:
     """Modeli çöz ve sonuçları düz bir sözlük olarak döndür.
 
@@ -117,7 +140,8 @@ def solve(model: BeamModel, dil: str = None) -> dict:
         raise SolverError(mesaj("cozulemedi", dil, hata=e)) from e
 
     res = ba.beam_results.results
-    M, V, D, x = (np.asarray(a) for a in (res.M, res.V, res.D, res.x))
+    M, V, x = (np.asarray(a) for a in (res.M, res.V, res.x))
+    D = _sehim_dizisi(ba.beam_results.vRes)
     if not (np.all(np.isfinite(M)) and np.all(np.isfinite(V)) and np.all(np.isfinite(D))):
         raise SolverError(mesaj("sonuc_tanimsiz", dil))
 

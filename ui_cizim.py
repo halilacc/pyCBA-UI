@@ -20,6 +20,11 @@ from ui_dil import cevir
 # tab:green ile birebir aynı hex'tir (#2ca02c).
 EKSENEL_YUK_MAVISI = "tab:blue"      # uygulanan eksenel yük oku
 NORMAL_KUVVET_YESILI = "#2ca02c"     # yatay tepki oku + N diyagramı
+# Öngörülmüş mesnet yer değiştirmesi etiketi. tab:purple (#9467bd) DEĞİL: şema
+# her iki temada da beyaz "kağıt" üzerine çizilir ve tab:purple orada 3.7:1'de
+# kalıyor — 8 punto etiket için yetersiz. Koyu mor 7.9:1 verir, mavi/yeşil/kırmızı
+# ile karışmaz.
+MESNET_COKMESI_MORU = "#6a3d9a"
 
 # Eksenel yük alt-tip anahtarları core.LOAD_TYPES ile aynı olmalı; anahtar
 # adı değişirse çizim sessizce bozulmasın diye import anında doğrulanır.
@@ -87,7 +92,12 @@ def ciz_sema(ax, model, reactions=None, dil=None):
     # kendisi çıkarıp (render.py `_infer_hinges`) beyaz daire olarak çiziyor.
     # Burada ikinci bir daire çizmek aynı glifi üst üste bindiriyordu.
     ciz_eksenel_yukler(ax, model)
+    # Legend ÖNCE: `subplots_adjust(top=...)` ile eksen kutusunu daraltıyor ve
+    # şema eşit en-boy oranlı olduğu için kutunun GENİŞLİĞİ de değişiyor.
+    # ciz_cokmeler etiket genişliğini bu ölçekten hesapladığından, sonradan
+    # daralan kutu onu yanıltıp çakışmaya yol açıyordu.
     _ciz_legend(ax, model, reactions, dil)
+    ciz_cokmeler(ax, model, dil)
 
 
 def _ciz_legend(ax, model, reactions, dil=None):
@@ -111,6 +121,8 @@ def _ciz_legend(ax, model, reactions, dil=None):
     )
     if tepki_var:
         girisler.append((NORMAL_KUVVET_YESILI, "^", cevir(dil, "sema.legend.tepki")))
+    if any(abs(d) > 1e-12 for d in model.settlements.values()):
+        girisler.append((MESNET_COKMESI_MORU, "d", cevir(dil, "sema.legend.cokme")))
     if not girisler:
         return
     # Glif renkten BAĞIMSIZ ikinci bir ayırt edicidir: kırmızı (düşey yük) ile
@@ -160,6 +172,119 @@ def ciz_eksenel_yukler(ax, model):
                             arrowprops=dict(ok_stili, lw=1.5, mutation_scale=12))
             ax.text((xa + xb) / 2, y + 0.07 * dy, f"{abs(n_val):g} kN/m",
                     color=EKSENEL_YUK_MAVISI, ha="center", fontsize=9)
+
+
+def ciz_cokmeler(ax, model, dil=None):
+    """Mesnet çökmelerini mesnet glifinin altına mor etiket olarak yaz.
+
+    Çökme bir KUVVET değil, dayatılmış yer değiştirmedir; ok yerine yön oku +
+    değer etiketi kullanılır (mor: yük kırmızısından, tepki yeşilinden ve
+    eksenel maviden ayrı; "mm" birimi de şemada yalnız burada geçer).
+
+    Yerleşim, kirişin ALTINDAKİ boş şerittir: yükler kirişin üstünde, mesnet
+    glifi doğrudan mesnedin altında (≈ -1.5·sh), ölçü çizgisi -2.3·sh ve tepki
+    okları -1.7·sh'den aşağıda durur; `sh = 0.05·L` çizicinin glif birimidir
+    (pycba.render.BeamPlotter.render_mpl). Etiket mesnedin yanına kaydırılır ki
+    glifin üstüne binmesin — normalde sağa, grafik alanından taşacaksa sola.
+
+    ÇAKIŞMA (yaşanmış; tahmin etme, ölçerek doğrula): etiket genişliği punto
+    cinsinden sabit, açıklık ise açıklık sayısı arttıkça inç olarak daralır —
+    ayrıca sola dönen etiket komşusuyla aynı açıklığı paylaşır. Bu yüzden
+    genişlik veri birimine çevrilip (eksenin inç genişliğinden; çizici
+    gerekmez) iki satıra dağıtılır: üst satır -0.55·sh, alt satır -1.25·sh.
+    Üst satır DÜĞÜM HARFLERİYLE (A, B, …) paylaşılır, onlar da engel sayılır.
+    İki satır da yetmezse punto küçültülür (8 → 7 → 6). Üçüncü satır YOK:
+    altta tepki okları (-1.7·sh) ve açıklık ölçü çizgisi (-2.3·sh) var.
+
+    Bilinen sınır: 10 açıklık + her mesnette çökme + tepki okları bir çift
+    etikette çakışma bırakır. Kovalanmadı — o yoğunlukta PyCBA'nın kendi tepki
+    etiketleri ve mesnet harfleri de üst üste biniyor, şema zaten okunmuyor.
+
+    Model GENİŞLETİLMİŞ olmalıdır (ciz_sema öyle çağırır): `expand()` çökmeleri
+    de yeni düğüm numaralandırmasına taşır.
+    """
+    kalemler = [(n, -float(d) * 1000.0)  # arayüzdeki işaret: + aşağı
+                for n, d in sorted(model.settlements.items())
+                if abs(float(d)) > 1e-12]
+    if not kalemler:
+        return
+    node_x = np.concatenate([[0.0], np.cumsum(model.spans)])
+    sh = 0.05 * float(node_x[-1])
+    # Etiket = yön oku + değer. Birim ("mm") legend'dadır; şemada mesnet başına
+    # düşen yatay yer açıklık sayısıyla daraldığı için her karakter pahalı.
+    # Çeviri gerektirmez, katalogda anahtarı yok.
+    metinler = [f"{'↓' if mm > 0 else '↑'} {abs(mm):g}" for _, mm in kalemler]
+
+    # Metnin veri birimindeki genişliği: eksenin inç genişliğinden ölçek çıkarılır.
+    # `apply_aspect()` ÖNCE, `get_position(original=False)` sonra: şema eşit
+    # en-boy oranıyla (`adjustable="box"`) çizilir, yani matplotlib veri
+    # sınırlarını değil EKSEN KUTUSUNU daraltır — hele tepki okları ylim'i
+    # aşağı büyüttükten sonra. `get_position()` özgün (daraltılmamış) kutuyu
+    # verdiği için ölçek %50'ye varan hatayla çıkıyor, üç açıklıkta "sığar"
+    # deyip etiketler çakışıyordu.
+    # 0.70 em: DejaVu Sans'ta ölçülen ortalama karakter genişliği (0.681) +
+    # küçük emniyet payı; kesin olması gerekmiyor, yalnız satır kararını verir.
+    fig = ax.get_figure()
+    ax.apply_aspect()
+    eksen_inc = fig.get_size_inches()[0] * ax.get_position(original=False).width
+    veri_inc = (ax.get_xlim()[1] - ax.get_xlim()[0]) / eksen_inc
+    satir_y = (-0.55 * sh, -1.25 * sh)
+
+    # ÜST satırı düğüm harfleriyle (A, B, …) paylaşıyoruz: PyCBA onları tam bu
+    # yükseklikte, mesnedin 0.8·sh soluna (sağ uçta sağına) yazar. Etiketleri
+    # yalnız birbirleriyle kıyaslamak yetmiyordu — altı açıklıkta etiketler
+    # harflerin üstüne biniyordu. Harfler burada engel olarak listelenir; alt
+    # satırda harf yok, çakışan etiket oraya iner.
+    harf_w = 0.70 * 9 / 72.0 * veri_inc  # tek karakter, PyCBA'da 9 punto kalın
+    harfler = []
+    for i, sup in enumerate(model.supports):
+        if sup == "free":  # çizilmeyen mesnedin harfi de yok (bkz. ciz_sema)
+            continue
+        hx = float(node_x[i])
+        harfler.append((hx + 0.8 * sh, hx + 0.8 * sh + harf_w)
+                       if i == len(node_x) - 1
+                       else (hx - 0.8 * sh - harf_w, hx - 0.8 * sh))
+
+    def _yerlesim(punto):
+        """Etiketleri iki satıra dağıt; (yerler, çakışma sayısı) döndür."""
+        yerler, satir_sonu, cakisma = [], [-np.inf, -np.inf], 0
+
+        def _bos(satir, x0, x1):
+            if x0 <= satir_sonu[satir] + 0.2 * sh:
+                return False
+            return satir != 0 or not any(a < x1 and x0 < b for a, b in harfler)
+
+        for (n, _mm), metin in zip(kalemler, metinler):
+            w = 0.70 * punto / 72.0 * len(metin) * veri_inc
+            # Mesnet glifi ±0.5·sh, altındaki zemin taraması 1.5·sh geniştir;
+            # 1.0·sh kaydırma etiketi ikisinin de dışında tutar. Daraltmayı
+            # deneme — 0.8·sh'de etiket glifin üstüne biniyordu; sıkışıklık
+            # satır/punto ile çözülür, kaydırmayı kısarak değil.
+            # Kural: etiket mesnedin SAĞINA yazılır; grafik alanından taşacaksa
+            # (sağ uç mesnedi ve çok açıklıkta sondan bir önceki) sola döner.
+            # Yalnız "sağ uç" diye özel durum yazmak yetmiyordu: 10 açıklıkta
+            # sondan bir önceki etiket eksenin dışına taşıp kırpılıyordu.
+            x_dugum = float(node_x[n - 1])
+            sola = x_dugum + sh + w > ax.get_xlim()[1]
+            x = x_dugum + (-sh if sola else sh)
+            x0 = x - w if sola else x
+            uygun = [i for i in (0, 1) if _bos(i, x0, x0 + w)]
+            if uygun:
+                satir = uygun[0]
+            else:  # ikisi de dolu: az taşanı seç, çakışmayı say
+                satir = int(np.argmin(satir_sonu))
+                cakisma += 1
+            satir_sonu[satir] = x0 + w
+            yerler.append((x, satir_y[satir], metin, "right" if sola else "left"))
+        return yerler, cakisma
+
+    for punto in (8, 7, 6):
+        yerler, cakisma = _yerlesim(punto)
+        if not cakisma:
+            break
+    for x, y, metin, hiza in yerler:
+        ax.text(x, y, metin, color=MESNET_COKMESI_MORU, ha=hiza, va="center",
+                fontsize=punto, zorder=9)
 
 
 def ciz_yatay_tepkiler(ax, model, reactions):

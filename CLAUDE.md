@@ -43,8 +43,9 @@ değişikliklerinden sonra bu değerlerin korunduğunu kontrol et.
 vakalar (referans problem, basit kiriş, konsol, Gerber düzenleri, mekanizma
 hatası, eksenel/normal kuvvet). PyCBA çıktısını "olduğu gibi" dondurma; yeni test
 eklerken de analitik olarak doğrulanabilir bir vaka seç. `tests/test_dil.py` iki
-dil kataloğunun bütünlüğünü denetler. Kök `conftest.py` yalnızca proje kökünü
-`sys.path`'e sokmak içindir.
+dil kataloğunun bütünlüğünü denetler. `tests/test_arayuz.py` `AppTest` ile
+`app.py`'yi gerçekten çalıştırır (sunum katmanı regresyonları). Kök
+`conftest.py` yalnızca proje kökünü `sys.path`'e sokmak içindir.
 
 **Arayüzü tarayıcısız sınama:** `streamlit.testing.v1.AppTest` `app.py`'yi
 gerçekten çalıştırır ve istisnaları yüzeye çıkarır — sunum katmanındaki bir
@@ -74,11 +75,22 @@ değildir; arayüz ileride Gradio/Flask ile değiştirilebilmelidir. UI mantığ
   interpolasyonla bulunur) ve `node_map` döndürür. **Çözüm/çizim hep genişletilmiş
   model üzerinden yapılır**; `solve()` tepkilerde `node`u kullanıcı numarasına geri
   çevirir, çizim `node_expanded`i kullanır. Bu ayrımı bozma.
+  `settlements` = mesnet çökmesi `{düğüm no: düşey yer değiştirme [m]}` →
+  `to_pycba` bunu PyCBA'nın öngörülmüş yer değiştirme vektörüne (`D=`, düğüm
+  başına düşey+dönme, bilinmeyende `None`) çevirir; yalnız düşey DOF yazılır.
+  İşaret sehim `D` ile aynıdır (**aşağı negatif**); arayüz "çökme"yi pozitif
+  sorup `app.py`'de tek satırda mm→m + işaret çevirir. Yalnız mesnetli düğüme
+  verilebilir (serbest düğümde doğan kuvvet PyCBA'nın tepki vektörüne girmez,
+  sessizce kaybolurdu). `expand()` çökmeleri de yeni numaralandırmaya taşır.
 - `core/solver.py` — `solve(model) -> dict` (diyagram dizileri, ekstremler, tepkiler,
   `analysis` nesnesi). Kararsız sistemde kullanıcıya gösterilebilir `SolverError`
   fırlatır. `_map_reactions` PyCBA'nın kompakt tepki vektörünü (yalnızca tutulu DOF'lar,
   düğüm başına düşey+dönme sırasıyla) mesnet tiplerine bakarak düğümlere eşler.
   `build_beam(model)` analiz çalıştırmadan şema çizimi için `pycba.Beam` verir.
+  Sehim dizisi `res.D`den DEĞİL `_sehim_dizisi(vRes)`ten kurulur: PyCBA eleman
+  dizilerinin ilk/son (tekrarlanan) dolgu istasyonlarına sehim yazmaz, 0 bırakır
+  — mesnette görünmez ama çöken mesnette ve açıklık içi mafsalın serbest
+  düğümünde eğri oraya "düşer". PyCBA kendi çiziminde `m.D[1:-1]` ile atar.
 - `app.py` — yalnızca sunum: sidebar'da girdi, `st.session_state.loads` içinde yük
   listesi, sonuçlar Plotly ile (`plot_results(backend="plotly")`).
 
@@ -91,7 +103,19 @@ Dikkat edilecekler:
 - Trapez yükte `a=0, c=0` "tüm açıklık" demektir; `to_lm_row` bu durumda a/c'yi düşürür.
 - `app.py`'deki konum girdilerinin `key`'i açıklık no ve L'ye bağlıdır — açıklık
   değişince bayat değer taşınmasın diye; bu deseni bozma.
-- Sehim `D` metre cinsindendir; UI mm'ye çevirerek gösterir.
+- **Kenar çubuğunda `st.rerun()` çağırma** — `yeniden_calistir = True` kur, blok
+  sonunda tek noktadan tetiklenir. Streamlit bir çalıştırmada ÇİZİLMEYEN
+  widget'ın durumunu siler; ekleme/silme bloğunda anında rerun edilince betik
+  orada kesilir, ondan sonraki widget'lar (çökme alanları, "4. Görünüm"
+  anahtarları) çizilmez ve bir sonraki çalıştırmada VARSAYILANLARIYLA geri
+  gelirdi (sehim grafiğini kapatıp yük ekleyince grafik yeniden açılıyordu).
+  Ana alandaki rerun'lar kenar çubuğundan sonra çalıştığı için serbesttir.
+  Muhafızı: `tests/test_arayuz.py`.
+- Sehim `D` metre cinsindendir; UI mm'ye çevirerek gösterir. Mesnet çökmesi de
+  öyle: çekirdek m, arayüz mm.
+- Çökme İZOSTATİK sistemde kesit tesiri üretmez (yalnız rijit yer değiştirme);
+  `app.py` bunu `static_degree() == 0` iken `st.info` ile söyler — sıfır M/V
+  "hesap çalışmadı" diye okunmasın.
 
 ## Dil (TR/EN)
 

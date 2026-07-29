@@ -417,6 +417,112 @@ def test_ea_uyari_bayragi(EI, supports, bekleniyor):
     assert solve(m)["ea_uyari"] is bekleniyor
 
 
+# ------------------------------------------------------------------ mesnet çökmesi
+def test_cokme_izostatikte_kesit_tesiri_uretmez():
+    """Basit kirişte sağ mesnedin çökmesi rijit dönmedir: M = V = 0.
+
+    İzostatik sistemde dayatılan yer değiştirme zorlanma doğurmaz; kiriş
+    sadece döner. Sehim uçta tam çökme kadar, diğer uçta sıfırdır.
+    """
+    m = BeamModel(spans=[6.0], EI=[30_000.0], supports=["pin", "roller"],
+                  settlements={2: -0.01})
+    assert m.validate() == []
+    r = solve(m)
+    assert np.allclose(r["M"], 0.0, atol=1e-9)
+    assert np.allclose(r["V"], 0.0, atol=1e-9)
+    assert r["D"][0] == pytest.approx(0.0, abs=1e-12)
+    assert r["D"][-1] == pytest.approx(-0.01, rel=1e-9)
+    assert not r["reactions"][0]["V"]  # tepki de sıfır (yalnız rijit hareket)
+
+
+def test_cokme_hiperstatik_kuvvet_yontemi():
+    """İki eşit açıklıkta orta mesnet δ kadar çökerse (yüksüz kiriş).
+
+    Kuvvet yöntemi: orta mesnet kaldırılınca 2L açıklıklı basit kiriş kalır,
+    ortadaki birim kuvvetin esnekliği (2L)³/48EI = L³/6EI. Uyum denklemi
+    R·L³/(6EI) = δ verir; yani orta mesnet AŞAĞI doğru 6EIδ/L³ çeker, uçlar
+    3EIδ/L³ yukarı iter ve orta mesnette M = +3EIδ/L² (sağlama: P=6EIδ/L³
+    tekil yüklü 2L basit kirişte M_orta = P·2L/4).
+    """
+    L, EI, delta = 6.0, 30_000.0, 0.01
+    m = BeamModel(spans=[L, L], EI=[EI, EI],
+                  supports=["pin", "roller", "roller"],
+                  settlements={2: -delta})
+    r = solve(m)
+    assert _tepki(r, 1) == pytest.approx(3 * EI * delta / L**3, rel=1e-6)
+    assert _tepki(r, 2) == pytest.approx(-6 * EI * delta / L**3, rel=1e-6)
+    assert _tepki(r, 3) == pytest.approx(3 * EI * delta / L**3, rel=1e-6)
+    assert r["Mmax"] == pytest.approx(3 * EI * delta / L**2, rel=1e-6)
+    assert r["Dmin"] == pytest.approx(-delta, rel=1e-6)
+
+
+def test_cokme_ustuste_toplama():
+    """Çökme + yük, ayrı ayrı çözümlerin toplamına eşit olmalı (lineer sistem)."""
+    ortak = dict(spans=[6.0, 6.0], EI=[30_000.0] * 2,
+                 supports=["pin", "roller", "pin"])
+    yuk = [Load(1, "udl", [20.0]), Load(2, "udl", [20.0])]
+    r_yuk = solve(BeamModel(loads=yuk, **ortak))
+    r_cokme = solve(BeamModel(settlements={2: -0.01}, **ortak))
+    r_ikisi = solve(BeamModel(loads=yuk, settlements={2: -0.01}, **ortak))
+    assert np.allclose(r_ikisi["M"], r_yuk["M"] + r_cokme["M"], atol=1e-6)
+    assert np.allclose(r_ikisi["D"], r_yuk["D"] + r_cokme["D"], atol=1e-12)
+
+
+def test_cokme_aciklik_ici_mafsalla_dogru_dugume_tasinir():
+    """`expand()` çökmeyi de yeni düğüm numaralandırmasına taşımalı.
+
+    1. açıklık a=3'te bölününce düğümler 1,(yeni),2,3 olur; kullanıcının 3.
+    düğümüne verdiği çökme genişletilmiş modelde 4. düğüme düşer.
+    """
+    m = BeamModel(spans=[6.0, 6.0], EI=[30_000.0] * 2,
+                  supports=["fixed", "roller", "roller"],
+                  span_hinges=[(1, 3.0)], settlements={3: -0.01})
+    genis, node_map = m.expand()
+    assert node_map == [1, None, 2, 3]
+    assert genis.settlements == {4: -0.01}
+    # Tepki, kullanıcının düğüm numarasıyla geri gelir ve çökme oradadır.
+    r = solve(m)
+    assert min(rr["node"] for rr in r["reactions"]) == 1
+    # Tolerans gevşek: PyCBA eleman sehimini eğrilikten SAYISAL integralle
+    # (npts=100 yamuk) kurar, uzak uçta ~1e-5 bağıl hata birikir.
+    assert r["D"][-1] == pytest.approx(-0.01, rel=1e-4)
+
+
+@pytest.mark.parametrize("settlements, parca", [
+    ({5: -0.01}, "düğüm no 5"),      # düğüm yok
+    ({2: -0.01}, "serbest"),         # mesnetsiz düğüm
+    ({1: float("nan")}, "sonlu"),    # sayısal olmayan değer
+])
+def test_cokme_dogrulama_hatalari(settlements, parca):
+    """Geçersiz çökme tanımları doğrulamada anlaşılır mesaj vermeli."""
+    m = BeamModel(spans=[6.0], EI=[30_000.0], supports=["fixed", "free"],
+                  settlements=settlements)
+    hatalar = m.validate()
+    assert any(parca in h for h in hatalar), hatalar
+
+
+def test_sehim_dizisinde_eleman_ucu_bosluk_yok():
+    """PyCBA'nın uç dolgu istasyonları sehimde sıfır kalmamalı.
+
+    `results.py` sehimi yalnız iç ızgaraya yazar; dolgu girdileri 0 kalır ve
+    çöken mesnette / açıklık içi mafsalın serbest düğümünde sehim eğrisi oraya
+    "düşüyor" gibi görünürdü (bkz. solver._sehim_dizisi). Aynı x'teki değerler
+    birbirine eşit olmalı — tam değil, çünkü eleman sehimi eğrilikten SAYISAL
+    integralle kurulur ve komşu elemanların uç değerleri arasında yamuk kuralı
+    hatası (~1e-5 bağıl) kalır. Dolgu kusuru bunun 50 katı büyüklükteydi.
+    """
+    m = BeamModel(spans=[6.0, 6.0], EI=[30_000.0] * 2,
+                  supports=["fixed", "free", "pin"],
+                  loads=[Load(1, "udl", [20.0]), Load(2, "udl", [20.0])],
+                  span_hinges=[(1, 4.0)])
+    r = solve(m)
+    x, D = np.asarray(r["x"]), np.asarray(r["D"])
+    olcek = float(np.abs(D).max())
+    for xi in np.unique(x):
+        degerler = D[np.abs(x - xi) < 1e-12]
+        assert np.ptp(degerler) < 1e-4 * olcek, f"x={xi} m'de sehim sıçraması var"
+
+
 # ------------------------------------------------------------------ hata yolları
 def test_ara_dugumde_ankastre_mesnet():
     """Ankastre-mafsallı kiriş: yalnız 1. açıklıkta UDL (kapalı çözüm).

@@ -59,6 +59,14 @@ _TR = {
                            "seçimini kullan.",
     "mafsal.zaten_var": "Bu mafsal zaten tanımlı.",
     "mafsal.satir": "Açıklık {sp} · a = {a:g} m",
+    "cokme.baslik": "Mesnet çökmesi",
+    "cokme.aciklama": "Bir mesnedin düşey olarak yer değiştirdiği durum (zemin "
+                      "oturması, kazık çökmesi). Değer AŞAĞI yönde pozitiftir; "
+                      "yukarı kalkma için eksi girin. Kesit tesiri yalnız "
+                      "hiperstatik sistemde doğar.",
+    "cokme.alan": "Δ Düğüm {n} [mm]",
+    "cokme.yardim": "Aşağı çökme pozitif, yukarı kalkma negatiftir.",
+    "cokme.mesnet_yok": "Çökme verilebilecek mesnet yok — tüm düğümler serbest.",
 
     # --- 3. yükler ---
     "bolum.yukler": "3. Yükler",
@@ -129,9 +137,19 @@ _TR = {
     "sema.legend.dusey": "Düşey yük",
     "sema.legend.eksenel": "Eksenel yük",
     "sema.legend.tepki": "Mesnet tepkisi",
+    # Birim ETİKETTE değil legend'da: şemada mesnet başına düşen yatay yer,
+    # açıklık sayısıyla daralıyor ve "Δ = 10 mm" komşusuyla çakışıyordu. Etiket
+    # yalnız ok + değerdir (bkz. ui_cizim.ciz_cokmeler), birimi legend taşır —
+    # diyagramlarda eksen başlığının birimi taşıması gibi.
+    "sema.legend.cokme": "Mesnet çökmesi [mm]",
     "sonuclar.baslik": "Sonuçlar",
     "sonuclar.yuk_ekleyin": "Sonuçlar ve mesnet tepkileri için en az bir yük "
-                            "ekleyin.",
+                            "ekleyin ya da bir mesnet çökmesi tanımlayın.",
+    "uyari.cokme_izostatik": "Sistem izostatik (statik belirsizlik derecesi 0): "
+                             "mesnet çökmesi kirişi rijit olarak yer değiştirir, "
+                             "kesit tesiri doğurmaz. Moment ve kesme "
+                             "diyagramlarının sıfır çıkması beklenen davranıştır; "
+                             "sehim diyagramı yer değiştirmeyi gösterir.",
     "uyari.ea": "Eksenel sistem hiperstatik (birden çok yatayda tutulu mesnet) "
                 "ve açıklıkların kesiti farklı. Çözücü eksenel rijitliği (EA) "
                 "tüm açıklıklarda eşit varsayar; yatay tepkilerin paylaşımı bu "
@@ -218,6 +236,14 @@ _EN = {
                            "node selection above.",
     "mafsal.zaten_var": "This hinge is already defined.",
     "mafsal.satir": "Span {sp} · a = {a:g} m",
+    "cokme.baslik": "Support settlement",
+    "cokme.aciklama": "A support that moves vertically (soil settlement, pile "
+                      "movement). A positive value means DOWNWARD; enter a "
+                      "negative value for uplift. Internal forces arise only in "
+                      "a statically indeterminate system.",
+    "cokme.alan": "Δ Node {n} [mm]",
+    "cokme.yardim": "Downward settlement is positive, uplift is negative.",
+    "cokme.mesnet_yok": "No support can settle — every node is free.",
 
     "bolum.yukler": "3. Loads",
     "aciklik_no": "Span no",
@@ -283,9 +309,16 @@ _EN = {
     "sema.legend.dusey": "Vertical load",
     "sema.legend.eksenel": "Axial load",
     "sema.legend.tepki": "Support reaction",
+    "sema.legend.cokme": "Support settlement [mm]",
     "sonuclar.baslik": "Results",
-    "sonuclar.yuk_ekleyin": "Add at least one load to see results and support "
-                            "reactions.",
+    "sonuclar.yuk_ekleyin": "Add at least one load, or define a support "
+                            "settlement, to see results and support reactions.",
+    "uyari.cokme_izostatik": "The system is statically determinate (degree of "
+                             "indeterminacy 0): a support settlement displaces "
+                             "the beam as a rigid body and produces no internal "
+                             "forces. Zero moment and shear diagrams are the "
+                             "expected behaviour; the deflection diagram shows "
+                             "the displacement.",
     "uyari.ea": "The axial system is statically indeterminate (more than one "
                 "horizontally restrained support) and the spans have different "
                 "sections. The solver assumes equal axial stiffness (EA) in all "

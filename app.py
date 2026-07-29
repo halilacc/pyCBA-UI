@@ -59,6 +59,17 @@ st.session_state.setdefault("mh_nonce", 0)
 
 # ---------------------------------------------------------------- girdi paneli
 with st.sidebar:
+    # KENAR ÇUBUĞUNDA `st.rerun()` ÇAĞIRMA — bunun yerine `yeniden_calistir`
+    # bayrağını kur; blok sonunda bir kez çalıştırılır.
+    # Neden: Streamlit, bir çalıştırmada ÇİZİLMEYEN widget'ın durumunu siler.
+    # Ekleme/silme bloğunda hemen rerun edilince betik orada kesiliyor, o
+    # bloktan SONRA gelen widget'lar (mesnet çökmesi alanları, "4. Görünüm"
+    # anahtarları) hiç çizilmiyor ve durumları çöpe gidiyordu: kullanıcı sehim
+    # grafiğini kapatıp yeni bir yük eklediğinde grafik varsayılanıyla geri
+    # açılıyordu. Bayrağı blok sonunda tüketmek tüm kenar çubuğunun çizilmesini
+    # garanti eder; ana alandaki (yük listesi) rerun'lar zaten kenar çubuğundan
+    # sonra çalıştığı için doğrudan `st.rerun()` kullanmayı sürdürür.
+    yeniden_calistir = False
     # Tema toggle: key "tema_gece" — üstte okunup CSS moduna karar verilir.
     st.toggle(t("gece_modu"), key="tema_gece")
     # Dil seçimi: key "dil" — üstte okunup `t()` bunun üzerinden kurulur.
@@ -147,7 +158,7 @@ with st.sidebar:
                 st.session_state.span_hinges.append((mh_span, a_val))
                 st.session_state.pop(mh_key, None)
                 st.session_state.mh_nonce += 1
-                st.rerun()
+                yeniden_calistir = True
         # Açıklık sayısı/uzunluğu küçültülünce geçersiz kalan mafsalları at —
         # yoksa model sürekli doğrulama hatası verip arayüzü kilitler.
         st.session_state.span_hinges = [
@@ -158,8 +169,33 @@ with st.sidebar:
             lc1, lc2 = st.columns([3, 1])
             lc1.write(t("mafsal.satir", sp=s, a=a))
             if lc2.button("🗑️", key=f"mh_sil_{j}"):
+                # `break`: liste bu döngünün içinde kısaldı; kalan satırları
+                # eski indekslerle çizmek yerine çık — blok sonundaki rerun
+                # listeyi zaten güncel haliyle yeniden kuracak.
                 st.session_state.span_hinges.pop(j)
-                st.rerun()
+                yeniden_calistir = True
+                break
+
+    # Mesnet çökmesi: mesnetli her düğüm için tek bir alan. Yük/mafsal
+    # listelerindeki gibi ekle-sil kurgusu YOK — düğüm sayısı zaten sınırlı (≤11)
+    # ve çökme bir düğümün TEK bir özelliğidir; alanın kendisi hem girdi hem
+    # listedir, bayat anahtar/silme tuzağı doğmaz. Serbest düğümler listelenmez
+    # (core doğrulaması da oraya çökme verilmesini reddeder).
+    with st.expander(t("cokme.baslik")):
+        st.caption(t("cokme.aciklama"))
+        settlements = {}
+        mesnetli = [i for i, s in enumerate(supports) if s != "free"]
+        if not mesnetli:
+            st.caption(t("cokme.mesnet_yok"))
+        for i in mesnetli:
+            cokme_mm = st.number_input(
+                t("cokme.alan", n=i + 1), value=0.0, step=1.0, format="%.2f",
+                help=t("cokme.yardim"), key=f"cokme_{i}",
+            )
+            if abs(cokme_mm) > 1e-12:
+                # Arayüz mm ve "+ aşağı"; çekirdek m ve sehim `D` ile aynı işaret
+                # (aşağı eksi) — birim ve işaret çevirisi burada, tek satırda.
+                settlements[i + 1] = -float(cokme_mm) / 1000.0
 
     st.header(t("bolum.yukler"))
     # Önce hangi açıklığa yük konacağı, sonra yük tipi seçilir (doğal akış:
@@ -227,7 +263,7 @@ with st.sidebar:
             for k in param_keys:
                 st.session_state.pop(k, None)
             st.session_state.add_nonce += 1
-            st.rerun()
+            yeniden_calistir = True
 
     # -------------------------------------------------------------- görünüm
     # Hangi grafiklerin çizileceği. Kenar çubuğunda tutulur ki her durumda
@@ -246,6 +282,12 @@ with st.sidebar:
     goster_V = st.toggle(t("gorunum.V"), value=True, key="goster_V")
     goster_M = st.toggle(t("gorunum.M"), value=True, key="goster_M")
     goster_D = st.toggle(t("gorunum.D"), value=True, key="goster_D")
+
+    # Bayrak burada tüketilir: kenar çubuğunun TAMAMI çizildi, hiçbir widget'ın
+    # durumu çöpe gitmez (bkz. bloğun başındaki not). Ana alan bu çalıştırmada
+    # hiç hesaplanmaz — çözüm ve grafikler boşuna kurulmuş olmaz.
+    if yeniden_calistir:
+        st.rerun()
 
 # --------------------------------------------------------------- yük listesi
 st.subheader(t("liste.baslik"))
@@ -337,6 +379,7 @@ model = BeamModel(
     spans=spans, EI=EI, supports=supports,
     loads=st.session_state.loads, hinges=hinges,
     span_hinges=list(st.session_state.span_hinges),
+    settlements=settlements,
 )
 
 errors = model.validate(dil)
@@ -360,8 +403,10 @@ def _sema_ciz(reactions=None, yukseklik=2.6):
     plt.close(fig_schema)
 
 
-# Yük yoksa çözüm (dolayısıyla tepki) yok: yalnızca şemayı çiz ve dur.
-if not st.session_state.loads:
+# Yük ve çökme yoksa çözüm (dolayısıyla tepki) yok: yalnızca şemayı çiz ve dur.
+# Çökme tek başına da sonuç üretir (hiperstatikte kesit tesiri, her durumda
+# sehim), bu yüzden "yük yok" koşuluna takılmamalı.
+if not st.session_state.loads and not settlements:
     _sema_ciz()
     st.info(t("sonuclar.yuk_ekleyin"))
     st.stop()
@@ -386,6 +431,11 @@ st.subheader(t("sonuclar.baslik"))
 # core/axial.py). Çekirdek bunu bayrakla bildirir, sunum katmanı gösterir.
 if result["ea_uyari"]:
     st.warning(t("uyari.ea"))
+
+# İzostatik sistemde çökme yalnız rijit yer değiştirme üretir; M ve V sıfır
+# çıkar. Bu doğru davranıştır ama "hesap çalışmadı" gibi okunur — nedeni söyle.
+if settlements and model.static_degree() == 0:
+    st.info(t("uyari.cokme_izostatik"))
 
 # (has_axial kenar çubuğunda "4. Görünüm" için zaten hesaplandı.)
 # Metrik kartları görünüm toggle'larından etkilenmez: sayısal özet kompakttır ve

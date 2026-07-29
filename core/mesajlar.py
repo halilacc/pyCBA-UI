@@ -32,6 +32,10 @@ _TR = {
                        "0 ile {L:g} m arasında (uçlar hariç) olmalı. "
                        "Mesnet hizasında mafsal için düğüm mafsalını kullanın.",
     "ic_mafsal_tekrar": "Açıklık {sp}, a={a:g} m'de birden fazla mafsal verildi.",
+    "cokme_dugum_gecersiz": "Çökme verilen düğüm no {n} geçersiz (1..{son}).",
+    "cokme_mesnetsiz": "Düğüm {n} serbest (mesnetsiz); çökme yalnız mesnetli bir "
+                       "düğüme verilebilir.",
+    "cokme_sayisal": "Düğüm {n} için çökme değeri sonlu bir sayı olmalı.",
     "yuk_tipi_bilinmeyen": "Yük {i}: bilinmeyen tip {kind!r}",
     "yuk_aciklik_gecersiz": "Yük {i}: açıklık no {sp} geçersiz (1..{n_span}).",
     "yuk_oneki": "Yük {i}: {mesaj}",
@@ -82,6 +86,10 @@ _EN = {
                        "lie between 0 and {L:g} m (ends excluded). For a hinge at "
                        "a support, use a node hinge instead.",
     "ic_mafsal_tekrar": "More than one hinge given in span {sp} at a={a:g} m.",
+    "cokme_dugum_gecersiz": "The settlement node number {n} is invalid (1..{son}).",
+    "cokme_mesnetsiz": "Node {n} is free (unsupported); a settlement can only be "
+                       "applied to a supported node.",
+    "cokme_sayisal": "The settlement value for node {n} must be a finite number.",
     "yuk_tipi_bilinmeyen": "Load {i}: unknown type {kind!r}",
     "yuk_aciklik_gecersiz": "Load {i}: span number {sp} is invalid (1..{n_span}).",
     "yuk_oneki": "Load {i}: {mesaj}",

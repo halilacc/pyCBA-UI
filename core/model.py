@@ -5,8 +5,9 @@ Bu modül arayüzden (Streamlit vb.) tamamen bağımsızdır: yalnızca modeli t
 doğrular ve PyCBA'nın `BeamAnalysis` kurucusunun beklediği argümanlara çevirir.
 """
 
+import math
 from dataclasses import dataclass, field
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 from .mesajlar import mesaj
 
@@ -172,6 +173,12 @@ class BeamModel:
                `expand()` bunları açıklığı bölerek mesnetsiz (free) düğüme çevirir;
                kullanıcı açıklıklarını ve yük numaralandırmasını elle bölmek zorunda
                kalmaz.
+    settlements : mesnet çökmeleri {düğüm no (1-tabanlı): düşey yer değiştirme [m]}.
+               İŞARET sehim `D` ile aynıdır: aşağı NEGATİF. (Arayüz "çökme"yi
+               pozitif aldığı için mm'yi işaret çevirerek buraya yazar.) Yalnız
+               mesnetli düğüme verilebilir; PyCBA'ya öngörülmüş yer değiştirme
+               vektörü (`D=`) olarak gider. İzostatik sistemde kesit tesiri
+               doğurmaz — kiriş yalnız rijit olarak yer değiştirir.
     """
 
     spans: List[float]
@@ -180,6 +187,7 @@ class BeamModel:
     loads: List[Load] = field(default_factory=list)
     hinges: List[int] = field(default_factory=list)
     span_hinges: List[tuple] = field(default_factory=list)
+    settlements: Dict[int, float] = field(default_factory=dict)
 
     @property
     def n_spans(self) -> int:
@@ -234,6 +242,23 @@ class BeamModel:
             elif (sp, round(a, 9)) in gorulen_ic:
                 hata("ic_mafsal_tekrar", sp=sp, a=a)
             gorulen_ic.add((sp, round(a, 9)))
+        # Mesnet çökmesi: mesnetsiz (free) düğüme verilemez. Fiziksel gerekçe,
+        # oradaki düğümün zaten serbestçe hareket ediyor olması; pratik gerekçe,
+        # solver._map_reactions'ın tepki vektörünü mesnet tiplerinden okuması —
+        # serbest düğüme dayatılan yer değiştirmenin ürettiği kuvvet PyCBA'nın
+        # tepki listesine girmez ve sessizce kaybolurdu.
+        for n, d in self.settlements.items():
+            if not (1 <= n <= self.n_nodes):
+                hata("cokme_dugum_gecersiz", n=n, son=self.n_nodes)
+                continue
+            if len(self.supports) == self.n_nodes and self.supports[n - 1] == "free":
+                hata("cokme_mesnetsiz", n=n)
+            try:
+                sonlu = math.isfinite(float(d))
+            except (TypeError, ValueError):
+                sonlu = False
+            if not sonlu:
+                hata("cokme_sayisal", n=n)
         for i, ld in enumerate(self.loads, start=1):
             if ld.kind not in LOAD_TYPES:
                 hata("yuk_tipi_bilinmeyen", i=i, kind=ld.kind)
@@ -306,6 +331,10 @@ class BeamModel:
         genis = BeamModel(
             spans=yeni_spans, EI=yeni_EI, supports=yeni_supports,
             loads=yeni_loads, hinges=sorted(yeni_hinges),
+            # Çökmeler de yeni numaralandırmaya taşınır (mafsallarla aynı yolla):
+            # bölme, çökmenin verildiği mesnedin düğüm no'sunu kaydırır.
+            settlements={node_map.index(n) + 1: d
+                         for n, d in self.settlements.items()},
         )
         return genis, node_map
 
@@ -356,10 +385,20 @@ class BeamModel:
         # Eksenel yükler PyCBA'ya gitmez (core/axial.py çözer); LM boş kalırsa
         # None geçilir — PyCBA boş yük matrisiyle sıfır sonuç üretir.
         lm = [ld.to_lm_row() for ld in self.loads if ld.kind not in AXIAL_KINDS]
+        # Öngörülmüş yer değiştirme vektörü: düğüm başına (düşey, dönme) iki
+        # girdi, bilinmeyen DOF'lar için None. Çökme yalnız DÜŞEY DOF'a yazılır;
+        # dönme serbest bırakılır (mesnet oturur, dönmesi engellenmez). Çökme
+        # yoksa None geçilir — PyCBA'nın varsayılan davranışı birebir korunur.
+        D = None
+        if self.settlements:
+            D = [None] * (2 * self.n_nodes)
+            for n, d in self.settlements.items():
+                D[2 * (n - 1)] = float(d)
         return {
             "L": list(self.spans),
             "EI": list(self.EI),
             "supports": list(self.supports),
             "LM": lm or None,
             "eletype": self.eletypes(),
+            "D": D,
         }
