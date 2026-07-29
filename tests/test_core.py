@@ -523,6 +523,117 @@ def test_sehim_dizisinde_eleman_ucu_bosluk_yok():
         assert np.ptp(degerler) < 1e-4 * olcek, f"x={xi} m'de sehim sıçraması var"
 
 
+# -------------------------------------------------------------- yay mesnet
+@pytest.mark.parametrize("k, R_bekleniyor", [
+    (100.0, 8.709677),      # yumuşak yay
+    (1_000.0, 31.764706),   # orta
+    (100_000.0, 44.813278), # neredeyse rijit (rijit limit 45 = 3wL/8)
+])
+def test_yay_mesnet_konsol_ucunda(k, R_bekleniyor):
+    """Konsol + uçta yay, UDL: δ = (wL⁴/8EI)/(1 + kL³/3EI), R = k·δ.
+
+    Yay kuvveti kirişin ucunu iterken uç sehimi azalır; iki etki k ile
+    birbirine bağlıdır. Kapalı çözüm doğrudan bu denklemden gelir.
+    """
+    L, EI, w = 6.0, 30_000.0, 20.0
+    m = BeamModel(spans=[L], EI=[EI], supports=["fixed", "spring"],
+                  springs={2: k}, loads=[Load(1, "udl", [w])])
+    assert m.validate() == []
+    r = solve(m)
+    delta = (w * L**4 / (8 * EI)) / (1 + k * L**3 / (3 * EI))
+    assert _tepki(r, 2) == pytest.approx(R_bekleniyor, rel=1e-5)
+    assert _tepki(r, 2) == pytest.approx(k * delta, rel=1e-6)
+    # Uç sehimi yayın çökmesidir (aşağı negatif) — mesnette 0 DEĞİL.
+    # Tolerans MUTLAK: rijit yayda sonuç, 0.108 m'lik iki büyük terimin farkıdır
+    # (serbest konsol sehimi eksi yayın geri ittirmesi); PyCBA sehimi eğrilikten
+    # sayısal integralle kurduğu için oradaki ~1e-6 m hata bu farkta bağıl olarak
+    # büyür. Tepki değeri bundan etkilenmez (rijitlik çözümünden gelir).
+    assert r["D"][-1] == pytest.approx(-delta, abs=1e-5)
+    # Düşey denge: ankastre tepkisi + yay kuvveti = toplam yük.
+    assert _tepki(r, 1) + _tepki(r, 2) == pytest.approx(w * L, rel=1e-9)
+
+
+def test_yay_rijit_limitte_referans_problemi_verir():
+    """k → ∞ yay, kayıcı mesnetle aynı sonucu vermeli (referans problem).
+
+    2×6 m, 20 kN/m: ortadaki kayıcı mesnet çok rijit bir yayla değiştirilince
+    M_B = -90 kNm ve 45/150/45 tepkileri korunmalı. `_map_reactions`ın yay
+    kuvvetini AYRI vektörden (Rs) okuduğunun da kanıtı: yanlış vektörden
+    okunsa tepkiler kayardı.
+    """
+    m = BeamModel(spans=[6.0, 6.0], EI=[30_000.0] * 2,
+                  supports=["pin", "spring", "pin"], springs={2: 1e12},
+                  loads=[Load(1, "udl", [20.0]), Load(2, "udl", [20.0])])
+    r = solve(m)
+    assert r["Mmin"] == pytest.approx(-90.0, rel=1e-4)
+    assert [_tepki(r, n) for n in (1, 2, 3)] == pytest.approx(
+        [45.0, 150.0, 45.0], rel=1e-4)
+
+
+def test_yay_yumusarken_izostatige_yaklasir():
+    """k → 0 yay, mesnetsiz (serbest) uçla aynı sonuca yaklaşmalı."""
+    ortak = dict(spans=[6.0], EI=[30_000.0], loads=[Load(1, "udl", [20.0])])
+    yumusak = solve(BeamModel(supports=["fixed", "spring"], springs={2: 1e-6},
+                              **ortak))
+    konsol = solve(BeamModel(supports=["fixed", "free"], **ortak))
+    assert yumusak["Mmin"] == pytest.approx(konsol["Mmin"], rel=1e-6)
+    assert yumusak["D"][-1] == pytest.approx(konsol["D"][-1], rel=1e-6)
+
+
+def test_yay_mesnet_hiperstatiklik_derecesine_sayilir():
+    """Yay, mekanizma sayımında kayıcı mesnetle aynı rolü oynar (r += 1).
+
+    Sayılmasaydı tek yaya oturan konsol "mekanizma" diye reddedilirdi.
+    """
+    m = BeamModel(spans=[6.0], EI=[30_000.0], supports=["fixed", "spring"],
+                  springs={2: 500.0})
+    assert m.static_degree() == 1
+    assert BeamModel(spans=[6.0], EI=[30_000.0], supports=["fixed", "free"],
+                     ).static_degree() == 0
+
+
+def test_yay_aciklik_ici_mafsalla_dogru_dugume_tasinir():
+    """`expand()` yay katsayısını da yeni düğüm numaralandırmasına taşımalı."""
+    m = BeamModel(spans=[6.0, 6.0], EI=[30_000.0] * 2,
+                  supports=["fixed", "roller", "spring"], springs={3: 800.0},
+                  span_hinges=[(1, 3.0)], loads=[Load(2, "udl", [20.0])])
+    genis, node_map = m.expand()
+    assert node_map == [1, None, 2, 3]
+    assert genis.springs == {4: 800.0}
+    r = solve(m)  # tepki kullanıcı düğüm no'suyla geri gelir
+    assert {rr["node"] for rr in r["reactions"]} == {1, 2, 3}
+
+
+def test_yay_to_pycba_ham_R_vektoru_kurar():
+    """Yay varsa `supports=` yerine ham `R` geçilir (PyCBA'da ikisi bir arada olmaz).
+
+    Yay yokken eski yol korunur — mevcut davranış bit düzeyinde değişmemeli.
+    """
+    m = BeamModel(spans=[6.0], EI=[30_000.0], supports=["fixed", "spring"],
+                  springs={2: 250.0})
+    arg = m.to_pycba()
+    assert "supports" not in arg
+    assert arg["R"] == [-1, -1, 250.0, 0]
+    yaysiz = BeamModel(spans=[6.0], EI=[30_000.0], supports=["fixed", "free"]).to_pycba()
+    assert "R" not in yaysiz and yaysiz["supports"] == ["fixed", "free"]
+
+
+@pytest.mark.parametrize("kw, parca", [
+    (dict(supports=["fixed", "spring"]), "katsayısı (k) verilmedi"),
+    (dict(supports=["fixed", "roller"], springs={2: 100.0}), "mesnet tipi yay değil"),
+    (dict(supports=["fixed", "spring"], springs={2: 0.0}), "pozitif ve sonlu"),
+    (dict(supports=["fixed", "spring"], springs={5: 100.0}), "düğüm no 5 geçersiz"),
+    (dict(supports=["fixed", "spring"], springs={2: 100.0}, settlements={2: -0.01}),
+     "yay mesnede çökme verilemez"),
+])
+def test_yay_dogrulama_hatalari(kw, parca):
+    """Eksik/çelişkili yay tanımı anlaşılır mesaj vermeli."""
+    kw.setdefault("springs", {})
+    m = BeamModel(spans=[6.0], EI=[30_000.0], **kw)
+    hatalar = m.validate()
+    assert any(parca in h for h in hatalar), hatalar
+
+
 # ------------------------------------------------------------------ hata yolları
 def test_ara_dugumde_ankastre_mesnet():
     """Ankastre-mafsallı kiriş: yalnız 1. açıklıkta UDL (kapalı çözüm).

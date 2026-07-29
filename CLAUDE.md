@@ -78,6 +78,15 @@ değildir; arayüz ileride Gradio/Flask ile değiştirilebilmelidir. UI mantığ
   interpolasyonla bulunur) ve `node_map` döndürür. **Çözüm/çizim hep genişletilmiş
   model üzerinden yapılır**; `solve()` tepkilerde `node`u kullanıcı numarasına geri
   çevirir, çizim `node_expanded`i kullanır. Bu ayrımı bozma.
+  `springs` = elastik yay mesnet `{düğüm no: k [kN/m]}`; ilgili düğümün tipi
+  `"spring"` olmak ZORUNDA (ikisi birlikte doğrulanır). Yay varken `to_pycba`
+  dostane `supports=` yolunu bırakıp ham `R` vektörü kurar — PyCBA'da yay
+  yalnız `R` ile verilir ve ikisi bir arada geçilemez (`analysis.py:95-103,152`).
+  Yay yoksa eski yol aynen korunur. `"spring"` adı PyCBA'nın çizici glif
+  sabitiyle birebir aynıdır (`render.py:41`), şema bedavaya doğru çizilir.
+  Yay `static_degree()`de tepki bileşeni sayılır (r += 1); `expand()` yay
+  katsayılarını da yeni numaralandırmaya taşır. Dönme yayı yoktur (PyCBA
+  destekler, arayüz düşeyle sınırlı).
   `settlements` = mesnet çökmesi `{düğüm no: düşey yer değiştirme [m]}` →
   `to_pycba` bunu PyCBA'nın öngörülmüş yer değiştirme vektörüne (`D=`, düğüm
   başına düşey+dönme, bilinmeyende `None`) çevirir; yalnız düşey DOF yazılır.
@@ -89,6 +98,9 @@ değildir; arayüz ileride Gradio/Flask ile değiştirilebilmelidir. UI mantığ
   `analysis` nesnesi). Kararsız sistemde kullanıcıya gösterilebilir `SolverError`
   fırlatır. `_map_reactions` PyCBA'nın kompakt tepki vektörünü (yalnızca tutulu DOF'lar,
   düğüm başına düşey+dönme sırasıyla) mesnet tiplerine bakarak düğümlere eşler.
+  **Yay mesnetler `R`de HİÇ GEÇMEZ**: PyCBA yay kuvvetini ayrı `Rs` vektöründe
+  verir (`-k·u`, yukarı pozitif; `analysis._reactions`). İki vektör ayrı ayrı
+  ilerletilir — yayı `R`den okumaya çalışmak sonraki BÜTÜN tepkileri kaydırır.
   `build_beam(model)` analiz çalıştırmadan şema çizimi için `pycba.Beam` verir.
   Sehim dizisi `res.D`den DEĞİL `_sehim_dizisi(vRes)`ten kurulur: PyCBA eleman
   dizilerinin ilk/son (tekrarlanan) dolgu istasyonlarına sehim yazmaz, 0 bırakır
@@ -136,6 +148,11 @@ Dikkat edilecekler:
   `ax.get_position()` varsayılanı AKTİF (daraltılmış) kutudur; dikey pay için
   `original=True` şart, yoksa hesap kendi kendini doğrulayan sabit noktaya
   düşer ve hiçbir şey değişmez.
+- Yay mesnede ÇÖKME verilemez (doğrulama reddeder): PyCBA'da öngörülmüş yer
+  değiştirme o DOF'un satır/sütununu sıfırlar (`analysis._apply_bc`), yani yay
+  rijitliği devre dışı kalır ve düğüm "çöken ankastre" gibi davranır —
+  kullanıcının kastettiği (yayın zemin ucunun oturması, kuvvetin k·(u−Δ)
+  olması) bu değildir. `app.py` çökme listesinde yay düğümlerini hiç göstermez.
 - Çökme İZOSTATİK sistemde kesit tesiri üretmez (yalnız rijit yer değiştirme);
   `app.py` bunu `static_degree() == 0` iken `st.info` ile söyler — sıfır M/V
   "hesap çalışmadı" diye okunmasın.

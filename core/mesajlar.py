@@ -36,6 +36,17 @@ _TR = {
     "cokme_mesnetsiz": "Düğüm {n} serbest (mesnetsiz); çökme yalnız mesnetli bir "
                        "düğüme verilebilir.",
     "cokme_sayisal": "Düğüm {n} için çökme değeri sonlu bir sayı olmalı.",
+    "cokme_yay_mesnet": "Düğüm {n} yay mesnettir; yay mesnede çökme verilemez. "
+                        "Çökme, yayın rijitliğini devre dışı bırakıp düğümü "
+                        "dayatılmış yer değiştirmeye zorlar. Ya mesnedi normal "
+                        "bir mesnede çevirin ya da çökmeyi kaldırın.",
+    "yay_katsayisi_yok": "Düğüm {n} yay mesnet seçildi ama yay katsayısı (k) "
+                         "verilmedi.",
+    "yay_katsayisi_pozitif": "Düğüm {n} için yay katsayısı k pozitif ve sonlu "
+                             "bir sayı olmalı [kN/m].",
+    "yay_dugum_gecersiz": "Yay katsayısı verilen düğüm no {n} geçersiz (1..{son}).",
+    "yay_mesnet_tipi": "Düğüm {n} için yay katsayısı verildi ama mesnet tipi yay "
+                       "değil. Mesnet tipini 'yay' yapın ya da katsayıyı silin.",
     "yuk_tipi_bilinmeyen": "Yük {i}: bilinmeyen tip {kind!r}",
     "yuk_aciklik_gecersiz": "Yük {i}: açıklık no {sp} geçersiz (1..{n_span}).",
     "yuk_oneki": "Yük {i}: {mesaj}",
@@ -90,6 +101,20 @@ _EN = {
     "cokme_mesnetsiz": "Node {n} is free (unsupported); a settlement can only be "
                        "applied to a supported node.",
     "cokme_sayisal": "The settlement value for node {n} must be a finite number.",
+    "cokme_yay_mesnet": "Node {n} is a spring support; a settlement cannot be "
+                        "applied to one. The settlement would disable the "
+                        "spring stiffness and force the node to a prescribed "
+                        "displacement instead. Either change the support type "
+                        "or remove the settlement.",
+    "yay_katsayisi_yok": "Node {n} is set as a spring support but no spring "
+                         "stiffness (k) was given.",
+    "yay_katsayisi_pozitif": "The spring stiffness k for node {n} must be a "
+                             "positive, finite number [kN/m].",
+    "yay_dugum_gecersiz": "The node number {n} given a spring stiffness is "
+                          "invalid (1..{son}).",
+    "yay_mesnet_tipi": "A spring stiffness was given for node {n} but its "
+                       "support type is not a spring. Set the support type to "
+                       "'spring' or remove the stiffness.",
     "yuk_tipi_bilinmeyen": "Load {i}: unknown type {kind!r}",
     "yuk_aciklik_gecersiz": "Load {i}: span number {sp} is invalid (1..{n_span}).",
     "yuk_oneki": "Load {i}: {mesaj}",

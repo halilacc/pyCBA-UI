@@ -106,7 +106,7 @@ with st.sidebar:
         )
 
     st.header(t("bolum.mesnetler"))
-    supports = []
+    supports, springs = [], {}
     for i in range(n_spans + 1):
         default = "pin" if i in (0, n_spans) else "roller"
         supports.append(
@@ -117,6 +117,16 @@ with st.sidebar:
                 key=f"sup_{i}",
             )
         )
+        # Yay katsayısı YALNIZ tipi yay olan düğümde sorulur; core zaten ikisini
+        # birlikte şart koşuyor (tip yay + k). Alan çizilmeyince Streamlit
+        # durumunu siler, yani tip değiştirilip geri alınırsa k varsayılana
+        # döner — burada istenen de bu (bayat katsayı taşınmasın).
+        if supports[-1] == "spring":
+            springs[i + 1] = st.number_input(
+                t("yay.katsayi", n=i + 1), min_value=0.01, value=10_000.0,
+                step=1000.0, format="%.2f", help=t("yay.yardim"),
+                key=f"yay_{i}",
+            )
 
     # Gerber kirişi: ara düğümlere iç mafsal. Uç düğümlerde mafsal anlamsızdır
     # (orada tek eleman var; mesnet tipi zaten belirler), bu yüzden seçenekler
@@ -192,7 +202,11 @@ with st.sidebar:
     with st.expander(t("cokme.baslik")):
         st.caption(t("cokme.aciklama"))
         settlements = {}
-        mesnetli = [i for i, s in enumerate(supports) if s != "free"]
+        # Yay mesnetler de listelenmez: çökme yayın rijitliğini devre dışı
+        # bırakır (bkz. core.model doğrulaması), yani alanı sunmak kullanıcıyı
+        # doğrudan bir hata mesajına sürüklerdi. Yay düğümü zaten ÇÖKER —
+        # çökmesi hesabın sonucudur, girdisi değil.
+        mesnetli = [i for i, s in enumerate(supports) if s not in ("free", "spring")]
         if not mesnetli:
             st.caption(t("cokme.mesnet_yok"))
         for i in mesnetli:
@@ -396,7 +410,7 @@ model = BeamModel(
     spans=spans, EI=EI, supports=supports,
     loads=st.session_state.loads, hinges=hinges,
     span_hinges=list(st.session_state.span_hinges),
-    settlements=settlements,
+    springs=springs, settlements=settlements,
 )
 
 errors = model.validate(dil)

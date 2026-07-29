@@ -44,6 +44,11 @@ _TR = {
     "mesnet.roller": "Kayıcı (roller)",
     "mesnet.fixed": "Ankastre (fixed)",
     "mesnet.free": "Serbest (free)",
+    "mesnet.spring": "Elastik yay (spring)",
+    "yay.katsayi": "k Düğüm {n} [kN/m]",
+    "yay.yardim": "Yayın düşey rijitliği: 1 m çökme başına oluşan tepki. "
+                  "Büyük k rijit mesnede (kayıcı), küçük k serbest uca yaklaşır. "
+                  "Düğüm çöker, tepki k·δ kadar olur.",
     "mafsal.coklu_secim": "İç mafsallı düğümler (Gerber)",
     "mafsal.yardim": "Seçilen düğümde kiriş moment aktarmaz; şemada içi boş "
                      "daire ile gösterilir.",
@@ -230,6 +235,12 @@ _EN = {
     "mesnet.roller": "Roller (roller)",
     "mesnet.fixed": "Fixed (fixed)",
     "mesnet.free": "Free (free)",
+    "mesnet.spring": "Elastic spring (spring)",
+    "yay.katsayi": "k Node {n} [kN/m]",
+    "yay.yardim": "Vertical stiffness of the spring: the reaction produced per "
+                  "1 m of settlement. A large k approaches a rigid (roller) "
+                  "support, a small one a free end. The node settles and the "
+                  "reaction becomes k·δ.",
     "mafsal.coklu_secim": "Nodes with internal hinges (Gerber)",
     "mafsal.yardim": "The beam transfers no moment at the selected node; shown "
                      "as a hollow circle in the schematic.",

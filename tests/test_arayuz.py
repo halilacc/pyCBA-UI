@@ -87,6 +87,52 @@ def test_yalniz_cokme_ile_sonuc_uretilir():
     assert kartlar["Min. sehim [mm]"] == "-10.00"
 
 
+def test_yay_mesnet_arayuzden_uctan_uca():
+    """Mesnet tipi "yay" seçilince katsayı alanı çıkmalı ve tepki tabloya girmeli.
+
+    Asıl denetlenen: PyCBA yay kuvvetini tepki vektöründe (`R`) DEĞİL ayrı bir
+    vektörde (`Rs`) verir; sunum katmanına yanlış eşlenirse tablodaki tepkiler
+    kayar. Beklenen değer çekirdekten alınıp tablonun HTML'inde aranır.
+    """
+    at = _uygulama()
+    _yuk_ekle(at, 20.0, nonce=0)
+    assert "yay_1" not in [w.key for w in at.sidebar.number_input], \
+        "yay katsayısı alanı, tip yay seçilmeden çizildi"
+    at.sidebar.selectbox(key="sup_1").set_value("spring").run()
+    at.sidebar.number_input(key="yay_1").set_value(1_000.0).run()
+    assert not at.exception
+
+    m = BeamModel(spans=[6.0, 6.0], EI=[30_000.0] * 2,
+                  supports=["pin", "spring", "pin"], springs={2: 1_000.0},
+                  loads=[Load(1, "udl", [20.0])])
+    tepkiler = {r["node"]: r["V"] for r in solve(m)["reactions"]}
+    assert sum(tepkiler.values()) == pytest.approx(120.0, rel=1e-9)  # denge
+    html = " ".join(md.value for md in at.markdown)
+    for dugum, V in tepkiler.items():
+        assert f"{V:.3f}" in html, f"düğüm {dugum} tepkisi ({V:.3f}) tabloda yok"
+
+
+def test_sema_yay_mesnedi_cizer():
+    """Şema yay glifini çizmeli ve düğüm harflerini kaydırmamalı.
+
+    `ciz_sema` glif listesini model tiplerinden kurar; "spring" adı PyCBA'nın
+    kendi glif sabitiyle (render.SPRING) birebir aynı olduğu için yay doğrudan
+    çizilir. Yay ÇİZİLEN bir mesnettir: harflenmede atlanırsa (free gibi)
+    tepki tablosuyla eşleşme bozulur.
+    """
+    m = BeamModel(spans=[6.0, 6.0], EI=[30_000.0] * 2,
+                  supports=["pin", "spring", "pin"], springs={2: 1_000.0},
+                  loads=[Load(1, "udl", [20.0])])
+    fig, ax = plt.subplots(figsize=(10, 3.4))
+    try:
+        ciz_sema(ax, m, solve(m)["reactions"], "tr")
+        harfler = sorted(t.get_text() for t in ax.texts
+                         if len(t.get_text()) == 1 and t.get_text().isalpha())
+        assert harfler == ["A", "B", "C"]
+    finally:
+        plt.close(fig)
+
+
 def test_sema_olcegi_icerikten_etkilenmez():
     """Aynı kirişte çizim ölçeği (metre başına piksel) her içerikte aynı olmalı.
 

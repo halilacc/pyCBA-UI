@@ -28,13 +28,18 @@ def build_beam(model: BeamModel):
     return cba.BeamAnalysis(**model.expand()[0].to_pycba()).beam
 
 
-def _map_reactions(model: BeamModel, R_vector) -> list:
-    """PyCBA'nın kompakt tepki vektörünü düğümlere eşle.
+def _map_reactions(model: BeamModel, R_vector, Rs_vector=None) -> list:
+    """PyCBA'nın kompakt tepki vektörlerini düğümlere eşle.
 
     `beam_results.R` yalnızca sabitlenmiş (restraint == -1) serbestlik
     derecelerinin tepkilerini DOF sırasıyla içerir. Düğüm başına iki DOF
     (düşey, dönme) olduğundan mesnet tiplerinden hangi tepkinin hangi düğüme
     ait olduğu çıkarılır.
+
+    Yay mesnetler `R`de HİÇ GEÇMEZ: PyCBA yay kuvvetini ayrı bir vektörde
+    (`beam_results.Rs`, yine DOF sırasıyla, yukarı pozitif `-k·u`) verir
+    (`analysis._reactions`). İki vektör ayrı ayrı ilerletilir; yay düğümünü
+    `R`den okumaya çalışmak sonraki bütün tepkileri kaydırırdı.
 
     Dönüş: [{"node": 1-tabanlı düğüm no, "x": konum [m],
              "V": düşey tepki [kN] | None, "M": moment tepkisi [kNm] | None}]
@@ -42,9 +47,13 @@ def _map_reactions(model: BeamModel, R_vector) -> list:
     positions = np.concatenate([[0.0], np.cumsum(model.spans)])
     reactions = []
     it = iter(np.asarray(R_vector).ravel())
+    it_s = iter(np.asarray(Rs_vector).ravel() if Rs_vector is not None else [])
     for i, sup in enumerate(model.supports):
-        vertical = next(it) if sup in ("pin", "roller", "fixed") else None
-        rotational = next(it) if sup == "fixed" else None
+        if sup == "spring":
+            vertical, rotational = next(it_s), None
+        else:
+            vertical = next(it) if sup in ("pin", "roller", "fixed") else None
+            rotational = next(it) if sup == "fixed" else None
         if sup != "free":
             reactions.append(
                 {
@@ -152,7 +161,7 @@ def solve(model: BeamModel, dil: str = None) -> dict:
     except ValueError as e:
         raise SolverError(mesaj("eksenel_cozulemedi", dil, hata=e)) from e
 
-    reactions = _map_reactions(gm, ba.beam_results.R)
+    reactions = _map_reactions(gm, ba.beam_results.R, ba.beam_results.Rs)
     for r in reactions:
         if r["node"] in ax_res["H"]:
             r["H"] = ax_res["H"][r["node"]]

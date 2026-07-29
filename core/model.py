@@ -13,7 +13,17 @@ from .mesajlar import mesaj
 
 
 # UI dropdown'ı ile PyCBA `supports=` adları birebir aynı (pycba.utils._SUPPORT_DOF).
-SUPPORT_TYPES = ["pin", "roller", "fixed", "free"]
+# "spring" bunun İSTİSNASIDIR: PyCBA'nın `supports=` kısayolunda yay yoktur, yay
+# ancak ham `R` vektörüyle verilir (bkz. to_pycba). Ad yine de "spring" seçildi;
+# PyCBA'nın çizici glif sabiti de böyle (`render.py`: SPRING = "spring"), yani
+# şema bedavaya doğru çizilir.
+SUPPORT_TYPES = ["pin", "roller", "fixed", "free", "spring"]
+
+# Mesnet tipi -> PyCBA ham DOF çifti (düşey, dönme): -1 tutulu, 0 serbest.
+# Yay bu tabloda yoktur; katsayısı düğüm başına `BeamModel.springs`ten gelir.
+_SUPPORT_DOF = {
+    "pin": (-1, 0), "roller": (-1, 0), "fixed": (-1, -1), "free": (0, 0),
+}
 
 # Yük tipi -> (PyCBA LM kodu, insan-okur ad, parametre adları)
 # LM satır formatları (pycba.analysis.BeamAnalysis docstring):
@@ -173,6 +183,12 @@ class BeamModel:
                `expand()` bunları açıklığı bölerek mesnetsiz (free) düğüme çevirir;
                kullanıcı açıklıklarını ve yük numaralandırmasını elle bölmek zorunda
                kalmaz.
+    springs : elastik yay mesnetlerin DÜŞEY yay katsayısı
+               {düğüm no (1-tabanlı): k [kN/m]}. Yalnız `supports[i] == "spring"`
+               olan düğümler için verilir (ikisi birlikte zorunludur). Düğüm
+               düşeyde tutulu değildir, k·δ kadar tepki verir; k büyüdükçe
+               davranış kayıcı mesnede yaklaşır. Dönme yayı YOKTUR (PyCBA
+               destekler ama arayüz düşey yayla sınırlıdır).
     settlements : mesnet çökmeleri {düğüm no (1-tabanlı): düşey yer değiştirme [m]}.
                İŞARET sehim `D` ile aynıdır: aşağı NEGATİF. (Arayüz "çökme"yi
                pozitif aldığı için mm'yi işaret çevirerek buraya yazar.) Yalnız
@@ -187,6 +203,7 @@ class BeamModel:
     loads: List[Load] = field(default_factory=list)
     hinges: List[int] = field(default_factory=list)
     span_hinges: List[tuple] = field(default_factory=list)
+    springs: Dict[int, float] = field(default_factory=dict)
     settlements: Dict[int, float] = field(default_factory=dict)
 
     @property
@@ -242,6 +259,25 @@ class BeamModel:
             elif (sp, round(a, 9)) in gorulen_ic:
                 hata("ic_mafsal_tekrar", sp=sp, a=a)
             gorulen_ic.add((sp, round(a, 9)))
+        # Yay mesnet: tip ile katsayı BİRLİKTE verilmelidir. Tek başına "spring"
+        # tipi katsayısız bir yay (sonsuz esnek = serbest) demek olurdu; tek
+        # başına katsayı ise sessizce yok sayılırdı.
+        if len(self.supports) == self.n_nodes:
+            for i, s in enumerate(self.supports, start=1):
+                if s == "spring" and i not in self.springs:
+                    hata("yay_katsayisi_yok", n=i)
+        for n, k in self.springs.items():
+            if not (1 <= n <= self.n_nodes):
+                hata("yay_dugum_gecersiz", n=n, son=self.n_nodes)
+                continue
+            if len(self.supports) == self.n_nodes and self.supports[n - 1] != "spring":
+                hata("yay_mesnet_tipi", n=n)
+            try:
+                gecerli = math.isfinite(float(k)) and float(k) > 0
+            except (TypeError, ValueError):
+                gecerli = False
+            if not gecerli:
+                hata("yay_katsayisi_pozitif", n=n)
         # Mesnet çökmesi: mesnetsiz (free) düğüme verilemez. Fiziksel gerekçe,
         # oradaki düğümün zaten serbestçe hareket ediyor olması; pratik gerekçe,
         # solver._map_reactions'ın tepki vektörünü mesnet tiplerinden okuması —
@@ -253,6 +289,14 @@ class BeamModel:
                 continue
             if len(self.supports) == self.n_nodes and self.supports[n - 1] == "free":
                 hata("cokme_mesnetsiz", n=n)
+            # Yay mesnede çökme verilemez: PyCBA'da öngörülmüş yer değiştirme o
+            # DOF'un satır/sütununu sıfırlar (analysis._apply_bc), yani yay
+            # rijitliği devre dışı kalır ve düğüm "çöken ANKASTRE mesnet" gibi
+            # davranır. Kullanıcının kastettiği (yayın ZEMİN ucunun oturması,
+            # kuvvetin k·(u−Δ) olması) bu değildir; sessizce yanlış model
+            # kurmaktansa reddedilir.
+            elif n in self.springs:
+                hata("cokme_yay_mesnet", n=n)
             try:
                 sonlu = math.isfinite(float(d))
             except (TypeError, ValueError):
@@ -331,6 +375,9 @@ class BeamModel:
         genis = BeamModel(
             spans=yeni_spans, EI=yeni_EI, supports=yeni_supports,
             loads=yeni_loads, hinges=sorted(yeni_hinges),
+            # Yay katsayıları da yeni numaralandırmaya taşınır (çökmelerle aynı
+            # yolla): bölme, yayın verildiği düğümün no'sunu kaydırır.
+            springs={node_map.index(n) + 1: k for n, k in self.springs.items()},
             # Çökmeler de yeni numaralandırmaya taşınır (mafsallarla aynı yolla):
             # bölme, çökmenin verildiği mesnedin düğüm no'sunu kaydırır.
             settlements={node_map.index(n) + 1: d
@@ -369,8 +416,14 @@ class BeamModel:
         Açıklık içi mafsallar da sayılır: `expand()` onları mesnetsiz düğüme
         çevirdiği için tepki sayısını değiştirmez, yalnız h'yi artırır — yani
         genişletilmiş model için de aynı sonucu verir.
+
+        Elastik yay mesnet TEPKİ BİLEŞENİ sayılır (r += 1): düşey hareketi
+        engellemez ama kuvvetle karşı koyduğu için rijit yer değiştirmeyi
+        önler, yani mekanizma sayımında kayıcı mesnetle aynı rolü oynar.
+        (Kuvveti denge denklemlerinden değil rijitlikten çıkar; bu yüzden yaylı
+        sistem "hiperstatik" görünür — doğrudur, çözüm k'ya bağlıdır.)
         """
-        r = sum({"pin": 1, "roller": 1, "fixed": 2, "free": 0}.get(s, 0)
+        r = sum({"pin": 1, "roller": 1, "fixed": 2, "free": 0, "spring": 1}.get(s, 0)
                 for s in self.supports)
         return r - len(self.hinges) - len(self.span_hinges) - 2
 
@@ -394,11 +447,27 @@ class BeamModel:
             D = [None] * (2 * self.n_nodes)
             for n, d in self.settlements.items():
                 D[2 * (n - 1)] = float(d)
-        return {
+        arg = {
             "L": list(self.spans),
             "EI": list(self.EI),
-            "supports": list(self.supports),
             "LM": lm or None,
             "eletype": self.eletypes(),
             "D": D,
         }
+        # Mesnetler: normalde PyCBA'nın dostane `supports=` adları geçilir.
+        # Yay varsa bu YOL KAPALIDIR — `_SUPPORT_DOF` sözlüğünde yay yoktur ve
+        # `supports` ile `R` birlikte verilemez (analysis.py:152). O durumda ham
+        # `R` vektörü kurulur: düğüm başına (düşey, dönme); -1 tutulu, 0 serbest,
+        # +k yay rijitliği (analysis.py:95-103). Yay yokken eski yol korunur ki
+        # mevcut davranış bit düzeyinde aynı kalsın.
+        if self.springs:
+            R = []
+            for i, s in enumerate(self.supports, start=1):
+                if s == "spring":
+                    R += [float(self.springs[i]), 0]
+                else:
+                    R += list(_SUPPORT_DOF[s])
+            arg["R"] = R
+        else:
+            arg["supports"] = list(self.supports)
+        return arg
