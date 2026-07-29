@@ -131,6 +131,9 @@ _TR = {
     # --- yük listesi ---
     "liste.baslik": "Tanımlı yükler",
     "liste.bos": "Henüz yük eklenmedi — kenar çubuğundan ekleyin.",
+    "liste.ornek": "Örnek model yüklü: iki eşit açıklıkta 20 kN/m yayılı yük. "
+                   "Kendi kirişin için bu yükleri silip kenar çubuğundan yeni "
+                   "yükler ekleyebilirsin.",
     "liste.duzenle_ipucu": "Bir yükü düzenlemek için başlığına tıklayıp açın.",
     "liste.satir": "**{i}.** {ad} — Açıklık {sp} — {ayrinti}",
     "liste.kaydet": "💾 Kaydet",
@@ -319,6 +322,9 @@ _EN = {
 
     "liste.baslik": "Defined loads",
     "liste.bos": "No loads added yet — add one from the sidebar.",
+    "liste.ornek": "An example model is loaded: a 20 kN/m distributed load on "
+                   "two equal spans. Delete these loads and add your own from "
+                   "the sidebar to model your own beam.",
     "liste.duzenle_ipucu": "Click a load's title to open and edit it.",
     "liste.satir": "**{i}.** {ad} — Span {sp} — {ayrinti}",
     "liste.kaydet": "💾 Save",

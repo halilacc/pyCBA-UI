@@ -24,8 +24,16 @@ YUK_EKLE = "FormSubmitter:yuk_ekle_form-➕ Yük ekle"
 MAFSAL_EKLE = "FormSubmitter:mafsal_ekle_form-➕ Mafsal ekle"
 
 
-def _uygulama() -> AppTest:
+def _uygulama(bos: bool = True) -> AppTest:
+    """Uygulamayı çalıştır. `bos=True` ilk açılıştaki örnek yükleri temizler.
+
+    Uygulama ilk açılışta örnek modelle gelir (bkz. app._ornek_yukler); testlerin
+    çoğu kendi yükünü kurduğu için varsayılan boş başlar. Örnek davranışını
+    denetleyen test `bos=False` geçer.
+    """
     at = AppTest.from_file(APP, default_timeout=120)
+    if bos:
+        at.session_state["loads"] = []
     at.run()
     assert not at.exception
     return at
@@ -70,6 +78,25 @@ def test_kenar_cubugu_widget_durumu_rerun_da_korunur(eylem):
     assert not at.exception
     assert at.sidebar.toggle(key="goster_D").value is False, "sehim anahtarı sıfırlandı"
     assert at.sidebar.number_input(key="cokme_0").value == 3.0, "çökme değeri sıfırlandı"
+
+
+def test_ilk_ekran_ornek_modelle_gelir():
+    """Uygulama ilk açılışta çalışan bir hesap göstermeli (boş form değil).
+
+    Örnek yükler varsayılan geometriyle referans problemi kurar; kartlarda
+    M_B = -90 kNm görünür. Sayı tutmuyorsa örnek yükler ya da varsayılan
+    geometri kaymış demektir.
+    """
+    at = _uygulama(bos=False)
+    assert len(at.session_state["loads"]) == 2
+    kartlar = {m.label: m.value for m in at.metric}
+    assert kartlar["Min. moment [kNm]"] == "-90.00"
+    assert any("Örnek model yüklü" in c.value for c in at.caption)
+    # Kullanıcı örneğe dokununca not kaybolur (bayrak tutulmuyor, içerik
+    # karşılaştırılıyor — bkz. app.py).
+    at.session_state["loads"] = []
+    at.run()
+    assert not any("Örnek model yüklü" in c.value for c in at.caption)
 
 
 def test_yalniz_cokme_ile_sonuc_uretilir():

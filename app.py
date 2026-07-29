@@ -54,8 +54,24 @@ karanlik = mod == "gece"
 enjekte_tema(mod)
 hero_baslik(t("hero.baslik"), t("hero.altyazi"), t("hero.eyebrow"), t("sema.aria"))
 
+def _ornek_yukler():
+    """İlk açılışta yüklü gelen örnek yükler (her çağrıda YENİ nesneler).
+
+    Boş bir formla karşılaşan ziyaretçi aracın ne yaptığını göremiyor, diyagramı
+    görmek için önce yük tanımlamak zorunda kalıyordu. Varsayılan geometriyle
+    (2×6 m, pin-roller-pin) birlikte bu yükler referans problemi kurar:
+    M_B = -90 kNm, tepkiler 45/150/45 kN — yani ilk ekranda çalışan bir hesap
+    görünür. Kullanıcı yükleri silince ya da değiştirince akış normale döner.
+
+    Kopya döndürmesi şart: liste `st.session_state`te yerinde düzenleniyor,
+    modül düzeyinde tek bir nesne paylaşılsaydı bir oturumun düzenlemesi
+    diğerine sızardı.
+    """
+    return [Load(1, "udl", [20.0]), Load(2, "udl", [20.0])]
+
+
 if "loads" not in st.session_state:
-    st.session_state.loads = []  # list[Load]
+    st.session_state.loads = _ornek_yukler()  # list[Load]
 # Ekleme formu alanlarının anahtarına giren sayaç: bir yük eklenince artırılır ki
 # widget'lar yeniden kurulup (remount) boşalsın. Form içindeki number_input'un
 # frontend değeri submit sonrası kalıcı olduğundan session_state'i silmek alanı
@@ -325,6 +341,12 @@ st.subheader(t("liste.baslik"))
 if not st.session_state.loads:
     st.info(t("liste.bos"))
 else:
+    # Örnek yükler HÂLÂ olduğu gibi duruyorsa bunun bir örnek olduğunu söyle;
+    # kullanıcı bir şey değiştirince (ekleme/silme/düzenleme) not kendiliğinden
+    # kaybolur. Ayrı bir "örnek mi" bayrağı tutmaya gerek yok: Load bir dataclass,
+    # liste karşılaştırması içerik karşılaştırmasıdır.
+    if st.session_state.loads == _ornek_yukler():
+        st.caption(t("liste.ornek"))
     st.caption(t("liste.duzenle_ipucu"))
     # Her yük açılır bir düzenleme formu: açıklık ve değerler değiştirilip
     # kaydedilebilir; hatalı girişte sil-ekle gerekmez. Yük tipini satır-içi
