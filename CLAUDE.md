@@ -113,6 +113,20 @@ Dikkat edilecekler:
   Muhafızı: `tests/test_arayuz.py`.
 - Sehim `D` metre cinsindendir; UI mm'ye çevirerek gösterir. Mesnet çökmesi de
   öyle: çekirdek m, arayüz mm.
+- **Şemada EI'nin görsel karşılığı YOKTUR** (bilerek): `ciz_sema` çiziciye
+  EI'leri eşitlenmiş bir kopya verir. PyCBA açıklıkların EI'si farklı olunca
+  kirişi derinliği EI^(1/3) ile değişen gri gövde olarak çiziyor; gövde ara
+  mesnet gliflerini, düğüm harflerini ve çökme etiketlerini yutuyordu. Hesap
+  gerçek EI ile yapılır. Muhafızı: `tests/test_arayuz.py` (piksel karşılaştırma).
+- **Şema ölçeği içerikten bağımsızdır** (`ui_cizim._sabitle_olcek`): kutu
+  genişliği `SEMA_KUTU_ORANI` ile sabitlenir, figür YÜKSEKLİĞİ veri
+  en-boyundan türetilir — `app.py` figür boyu vermeye çalışmasın. PyCBA
+  `adjustable="box"` kullandığı için düşey veri aralığı (tekil yük oku, yukarı
+  yük, moment yayı, tepki okları) kutuyu daraltıyor, punto cinsinden sabit
+  yazı/çizgi çizime göre 1.8 kata varan oranda büyüyüp küçülüyordu.
+  `ax.get_position()` varsayılanı AKTİF (daraltılmış) kutudur; dikey pay için
+  `original=True` şart, yoksa hesap kendi kendini doğrulayan sabit noktaya
+  düşer ve hiçbir şey değişmez.
 - Çökme İZOSTATİK sistemde kesit tesiri üretmez (yalnız rijit yer değiştirme);
   `app.py` bunu `static_degree() == 0` iken `st.info` ile söyler — sıfır M/V
   "hesap çalışmadı" diye okunmasın.

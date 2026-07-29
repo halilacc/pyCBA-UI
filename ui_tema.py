@@ -17,6 +17,7 @@ sabittir ve bu değişkenleri kullanır. Grafikler/şema her iki modda okunur ka
 Giriş (fade-up) animasyonu yalnız oturumun ilk yüklemesinde oynatılır.
 """
 
+import html
 import time
 
 import streamlit as st
@@ -30,6 +31,16 @@ _VARS = {
         # Parlama (glare) rengi moda göre TERS çalışır: aydınlıkta kart yüzeyi
         # beyaz olduğu için beyaz parlama görünmez — hafif aksan tonu kullanılır.
         "glare": "rgba(67,56,202,0.10)",
+        # Shiny metin süpürmesi: TABAN renk + üzerinden geçen parlak BANT.
+        # Aydınlıkta koyu zemin yok, o yüzden "parlama" ancak taban KOYULAŞTIRILIP
+        # bant açılarak görünür olur. İlk denemede bant koyu (#1E1B4B) seçilmişti:
+        # kontrast güvenliydi ama parlaklık farkı 0.067'de kalıyor, gecedeki
+        # 0.587'nin dokuzda biri — kullanıcı "aydınlıkta hiçbir şey görünmüyor"
+        # dedi, haklıydı. Şimdi fark 0.129. Ölçülen kontrastlar (zemin #F3F2EF):
+        # taban 8.87, bant 3.99 — bant AA eşiğinin (4.5) hemen altında ama dar,
+        # geçici ve yazının geri kalanı 8.87'de; alt çizgi de tabandan çizilir.
+        "shine_taban": "#3730A3",
+        "shine": "#6366F1",
         # Buton kenarı (SpecularButton'daki baseColor rolü: kenara yapışan koyu
         # şerit, kalınlık hissi verir). İstenen ton #0D0D0D; aydınlıkta düz siyah
         # beyaz/mor buton üzerinde sert bir çerçeve gibi durduğu için aynı ton
@@ -41,6 +52,9 @@ _VARS = {
         "ink": "#E9E7E2", "muted": "#9C988F", "line": "rgba(255,255,255,0.12)",
         "acc": "#818CF8", "acc2": "#A5B4FC",
         "glare": "rgba(255,255,255,0.10)",
+        # Gecede taban zaten aksan; bant neredeyse beyaz (kontrast 4.86 → 12.98).
+        "shine_taban": "#818CF8",
+        "shine": "#EEF2FF",
         # Gecede istenen #0D0D0D düz kullanılır: yüzeyden koyu olduğu için
         # kenar gerçekten kalınlık/derinlik okunur.
         "btn_edge": "#0D0D0D",
@@ -55,6 +69,7 @@ def _degiskenler(mod: str) -> str:
         f"--pc-bg:{v['bg']};--pc-surface:{v['surface']};--pc-surface2:{v['surface2']};"
         f"--pc-ink:{v['ink']};--pc-muted:{v['muted']};--pc-line:{v['line']};"
         f"--pc-acc:{v['acc']};--pc-acc2:{v['acc2']};--pc-glare:{v['glare']};"
+        f"--pc-shine:{v['shine']};--pc-shine-taban:{v['shine_taban']};"
         f"--pc-btn-edge:{v['btn_edge']};"
         "--pc-r:14px;--pc-r-sm:10px;"
         "--pc-ease:cubic-bezier(0.23,1,0.32,1);"
@@ -104,6 +119,37 @@ h1, h2, h3, [data-testid="stMetricValue"],
   -webkit-text-fill-color: transparent; color: transparent;
 }
 .pc-hero__sub { margin: 0.5rem 0 0; color: var(--pc-muted); font-size: 1.02rem; max-width: 64ch; }
+
+/* Kenar çubuğu altbilgisi (kaynak kod + künye + geliştirici).
+   `st.caption` DEĞİL, kendi bloğumuz: caption'ın puntosu sabit 14px ve
+   Streamlit'in `stCaptionContainer * { color: ... }` kuralı içindeki bağlantıyı
+   da soluklaştırıyordu. Kendi sınıfımızla hem punto hem renk bizde; shiny
+   efekti de href yerine sınıfla hedeflenir (adres değişirse kural bozulmaz). */
+.pc-altbilgi { font-size: 1rem; line-height: 1.55; color: var(--pc-muted); }
+.pc-altbilgi a { color: var(--pc-acc); text-decoration: underline; }
+.pc-altbilgi__kunye { display: inline-block; }
+
+/* Shiny metin — react-bits ShinyText'ten uyarlandı (npx/React yok; efekt saf
+   CSS). Özgününde saydam beyaz bir bant gri metnin üzerinden geçer; burada
+   gradyan TABAN RENGİ de taşır, çünkü `background-clip: text` için dolgunun
+   saydam olması gerekir ve `color` ile taban rengi veremeyiz (bkz.
+   .pc-hero__title, aynı teknik).
+   Yalnız geliştirici bağlantısı süpürülür — kaynak kod bağlantısı sade kalır
+   ki AGPL 13. madde bağlantısı süslemeyle rekabet etmesin.
+   Alt çizgi rengi AÇIKÇA verilir: currentColor saydam olduğu için çizgi
+   kaybolur ve bağlantı bağlantı gibi durmazdı. */
+.pc-altbilgi a.pc-altbilgi__shiny {  /* `.pc-altbilgi a`dan daha özgül olmalı:
+     onun `text-decoration` KISAYOLU alt çizgi rengini currentColor'a sıfırlıyor
+     ve çizgi tabanla farklı bir indigo çıkıyordu (ölçüldü: #4338CA vs #3730A3). */
+  background: linear-gradient(100deg,
+    var(--pc-shine-taban) 40%, var(--pc-shine) 50%, var(--pc-shine-taban) 60%);
+  background-size: 220% 100%;
+  -webkit-background-clip: text; background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-decoration-color: var(--pc-shine-taban);
+  animation: pcShiny 4.6s linear infinite;
+}
+@keyframes pcShiny { from { background-position: 180% 0; } to { background-position: -80% 0; } }
 .pc-hero__line {
   margin-top: 0.9rem; height: 3px; width: 84px; border-radius: 3px; transform-origin: left center;
   background: linear-gradient(90deg, var(--pc-acc), var(--pc-acc2));
@@ -336,6 +382,12 @@ h1, h2, h3, [data-testid="stMetricValue"],
   [data-testid="stFormSubmitButton"] button:hover::before { animation-play-state: paused !important; }
   /* Hero şeması KALIR, donar: tam sarkmış haliyle okunur bir statik şemadır. */
   .pc-beam__yuk, .pc-beam__sehim { animation: none !important; }
+  /* Shiny bağlantı: süpürme durur, düz taban rengine döner (gradyan dolgusu
+     kaldırılmazsa metin donmuş bir bant deseniyle kalırdı). */
+  .pc-altbilgi__shiny {
+    animation: none !important; background: none !important;
+    -webkit-text-fill-color: var(--pc-shine-taban) !important;
+  }
 }
 </style>"""
 
@@ -628,6 +680,29 @@ def hero_baslik(baslik: str, altyazi: str, eyebrow: str, sema_aria: str):
         f'<div class="pc-hero__line"></div>'
         f'</div>'
         f'<div class="pc-hero__gorsel">{_kiris_svg(sema_aria)}</div>'
+        f'</div>',
+        unsafe_allow_html=True,
+    )
+
+
+def altbilgi(kaynak_metin: str, kaynak_url: str, atif: str,
+             gelistiren: str, ad: str, profil_url: str):
+    """Kenar çubuğu altbilgisi: kaynak kod bağlantısı, künye, geliştirici.
+
+    `st.caption` yerine kendi bloğumuz — gerekçesi CSS'te (.pc-altbilgi).
+    Kaynak kod bağlantısı AGPL 13. maddesinin gereği olduğu için sade ve
+    okunur bırakılır; süpürme (shiny) yalnız geliştirici bağlantısındadır.
+    Metinlerin tamamı dışarıdan verilir; bu modül dil kataloğunu tanımaz.
+    """
+    kacir = html.escape
+    st.markdown(
+        f'<div class="pc-altbilgi">'
+        f'<a href="{kacir(kaynak_url, quote=True)}" target="_blank" '
+        f'rel="noopener">{kacir(kaynak_metin)}</a><br>'
+        f'<span class="pc-altbilgi__kunye">{kacir(atif)}</span><br>'
+        f'{kacir(gelistiren)}: '
+        f'<a class="pc-altbilgi__shiny" href="{kacir(profil_url, quote=True)}" '
+        f'target="_blank" rel="noopener">{kacir(ad)}</a>'
         f'</div>',
         unsafe_allow_html=True,
     )

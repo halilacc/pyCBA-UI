@@ -1,0 +1,52 @@
+pyCBA-UI — Sürekli kiriş analizi web arayüzü
+Copyright (C) 2026 Halil Reis Acir
+https://www.linkedin.com/in/halil-reis-acir · https://github.com/halilacc
+
+Bu program özgür yazılımdır: GNU Affero Genel Kamu Lisansı'nın (Free Software
+Foundation tarafından yayımlanan) 3. sürümü ya da (tercihinize göre) daha
+sonraki bir sürümü koşullarıyla yeniden dağıtabilir ve/veya
+değiştirebilirsiniz.
+
+Bu program faydalı olacağı umuduyla dağıtılmaktadır, ancak HİÇBİR GARANTİ
+VERİLMEZ; SATILABİLİRLİK ya da BELİRLİ BİR AMACA UYGUNLUK zımni garantileri
+dahi yoktur. Ayrıntılar için GNU Affero Genel Kamu Lisansı'na bakınız.
+
+Lisansın tam metni bu dizindeki LICENSE dosyasındadır; ayrıca:
+<https://www.gnu.org/licenses/>.
+
+Kaynak kodu: https://github.com/halilacc/pyCBA-UI
+
+
+ÜÇÜNCÜ TARAF BİLEŞENLER
+-----------------------
+
+Bu yazılım, hesap çekirdeği olarak PyCBA'yı kullanır (fork edilmemiş, bağımlılık
+olarak içe aktarılmıştır):
+
+    PyCBA — Python Continuous Beam Analysis
+    Copyright (C) Colin Caprani <colin.caprani@monash.edu>
+    Lisans: AGPL-3.0-or-later
+    Kaynak: https://github.com/ccaprani/pycba
+    Belgeler: https://ccaprani.github.io/pycba/
+
+PyCBA AGPL-3.0-or-later ile lisanslandığı için bu arayüz de aynı lisansla
+dağıtılır. Yazılım ağ üzerinden kullanıma sunulduğunda (örn. Streamlit Cloud),
+AGPL'nin 13. maddesi uyarınca kullanıcılara kaynak koda erişim sunulur;
+uygulama bunu kenar çubuğundaki "Kaynak kodu" bağlantısıyla yapar.
+
+Diğer bağımlılıklar (Streamlit, NumPy, SciPy, Matplotlib, Plotly) kendi
+lisanslarıyla dağıtılır; ayrıntılar için requirements.txt ve ilgili projelerin
+kendi lisans dosyalarına bakınız.
+
+
+THIRD-PARTY COMPONENTS (English summary)
+----------------------------------------
+
+This web interface is built on PyCBA (imported as a dependency, not forked):
+PyCBA, Copyright (C) Colin Caprani, licensed under AGPL-3.0-or-later,
+https://github.com/ccaprani/pycba
+
+Because PyCBA is AGPL-3.0-or-later, this interface is distributed under the
+same licence. When the software is made available over a network, AGPL section
+13 applies: the running application offers its users access to the
+Corresponding Source through the "Source code" link in its sidebar.

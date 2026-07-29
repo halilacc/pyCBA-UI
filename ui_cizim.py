@@ -7,6 +7,8 @@ Hesap `core/`dedir; bu modül yalnızca çizer. `app.py` kullanır, ancak
 Streamlit gerektirmediği için tarayıcısız da test edilebilir.
 """
 
+from dataclasses import replace
+
 import numpy as np
 from matplotlib.lines import Line2D
 from pycba.render import BeamPlotter, Support
@@ -25,6 +27,10 @@ NORMAL_KUVVET_YESILI = "#2ca02c"     # yatay tepki oku + N diyagramı
 # kalıyor — 8 punto etiket için yetersiz. Koyu mor 7.9:1 verir, mavi/yeşil/kırmızı
 # ile karışmaz.
 MESNET_COKMESI_MORU = "#6a3d9a"
+
+# Şema çiziminin resim genişliği içindeki payı. Ölçeği SABİTLEMEK için kullanılır
+# (bkz. _sabitle_olcek); değeri büyütmek şemayı büyütür ama figürü uzatır.
+SEMA_KUTU_ORANI = 0.55
 
 # Eksenel yük alt-tip anahtarları core.LOAD_TYPES ile aynı olmalı; anahtar
 # adı değişirse çizim sessizce bozulmasın diye import anında doğrulanır.
@@ -52,7 +58,18 @@ def ciz_sema(ax, model, reactions=None, dil=None):
     # şemada bölünmüş açıklıklar ve mesnetsiz mafsal düğümü görünür. Toplam
     # uzunluk ve yük konumları değişmez.
     model = model.expand()[0]
-    bp = BeamPlotter(build_beam(model), loads=None)  # loads=None -> beam.LM
+    # ŞEMADA EI'nin GÖRSEL KARŞILIĞI YOKTUR — bilerek. PyCBA, açıklıkların EI'si
+    # farklı olduğu anda kirişi düz çizgi yerine derinliği EI^(1/3) ile değişen
+    # gri bir GÖVDE olarak çizer (render.BeamPlotter._ei_depth_profile). Bu bizde
+    # bilgi taşımıyor, üstelik bozuyor: gövde ±0.6·sh yer kapladığı için ara
+    # mesnet gliflerini (-0.20·sh'de oturur), düğüm harflerini ve çökme
+    # etiketlerini (-0.55·sh) yutuyor; EI'yi 30000'den 30001'e çekmek bile
+    # kirişi kalın bir bara çeviriyor. Kullanıcı kesit GEOMETRİSİ değil, salt
+    # sayı olarak EI giriyor; şemanın işi geometri ve yük yerleşimini
+    # göstermek. Bu yüzden çiziciye EI'leri eşitlenmiş bir KOPYA verilir —
+    # hesap gerçek EI'lerle yapılır, yalnız çizim etkilenmez.
+    bp = BeamPlotter(build_beam(replace(model, EI=[1.0] * model.n_spans)),
+                     loads=None)  # loads=None -> beam.LM
     node_x = np.concatenate([[0.0], np.cumsum(model.spans)])
     n_node = len(node_x)
     # `Support.node` PyCBA'da YALNIZCA mesnet harfini üretmek için kullanılır
@@ -97,7 +114,40 @@ def ciz_sema(ax, model, reactions=None, dil=None):
     # ciz_cokmeler etiket genişliğini bu ölçekten hesapladığından, sonradan
     # daralan kutu onu yanıltıp çakışmaya yol açıyordu.
     _ciz_legend(ax, model, reactions, dil)
+    # Ölçek sabitleme, ylim'i etkileyen HER ŞEYDEN sonra ama çökme
+    # etiketlerinden ÖNCE: etiket yerleşimi kutu genişliğinden ölçek çıkarıyor,
+    # sonradan değişen kutu onu yanıltırdı.
+    _sabitle_olcek(ax)
     ciz_cokmeler(ax, model, dil)
+
+
+def _sabitle_olcek(ax):
+    """Çizim ölçeğini içerikten bağımsız kıl: kutu genişliğini sabitle.
+
+    PyCBA şemayı `set_aspect("equal", adjustable="box")` ile çizer; eşit ölçeği
+    korumak için EKSEN KUTUSUNU daraltır. Düşey veri aralığı içeriğe göre
+    değiştiği için (tekil yük oku uzun, yukarı yük alta taşar, moment yayı,
+    tepki okları var/yok) kutu da onunla daralıp genişliyordu: aynı 8 punto
+    yazı kirişin kâh 0.29 m'sini kâh 0.53 m'sini kaplıyor, kullanıcı "yazılar
+    büyüdü, çizgiler kalınlaştı" diye görüyordu. Ölçüldü — 1.8 kat oynama.
+
+    Çözüm: kutu genişliğini oran olarak SABİTLE, figür yüksekliğini veri
+    en-boyundan türet. Böylece ölçek (metre/piksel) yalnız kiriş uzunluğuna
+    bağlı kalır; yük tipi, tepki oku, çökme etiketi hiçbir şeyi kaydırmaz.
+    Figürün yüksekliği içerikle değişir — ölçek yerine BOY esner.
+    """
+    fig = ax.get_figure()
+    sol = (1.0 - SEMA_KUTU_ORANI) / 2.0  # kutu yatayda ortalanır
+    fig.subplots_adjust(left=sol, right=sol + SEMA_KUTU_ORANI)
+    # `original=True` ŞART: `get_position()` varsayılanı, en-boy oranı için
+    # matplotlib'in daralttığı AKTİF kutuyu verir. Onu kullanmak denklemi kendi
+    # kendini doğrulayan bir sabit noktaya çevirip yüksekliği hiç değiştirmiyor.
+    # Bize subplots_adjust ile kurulan özgün dikey pay (top − bottom) gerekli.
+    kutu = ax.get_position(original=True)
+    (x0, x1), (y0, y1) = ax.get_xlim(), ax.get_ylim()
+    gen_in = fig.get_size_inches()[0] * SEMA_KUTU_ORANI
+    yuk_in = gen_in * (y1 - y0) / (x1 - x0)  # eşit ölçek için gereken yükseklik
+    fig.set_size_inches(fig.get_size_inches()[0], yuk_in / kutu.height)
 
 
 def _ciz_legend(ax, model, reactions, dil=None):

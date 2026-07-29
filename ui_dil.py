@@ -192,6 +192,15 @@ _TR = {
     "csv.sehim": "Sehim [mm]",
     "csv.normal": "Normal [kN]",
 
+    # --- kenar çubuğu altbilgisi (lisans) ---
+    # AGPL 13. madde: yazılım ağ üzerinden kullandırıldığında kullanıcılara
+    # kaynak koda erişim SUNULMALI. Depodaki LICENSE/NOTICE tek başına yetmez,
+    # bağlantının çalışan uygulamada olması gerekir (bkz. NOTICE).
+    "lisans.kaynak": "Kaynak kodu (AGPL-3.0)",
+    "lisans.atif": "Hesap çekirdeği PyCBA — © Colin Caprani, AGPL-3.0",
+    # Geliştirici adı çeviriye girmez (özel ad); yalnız etiketi çevrilir.
+    "lisans.gelistiren": "Geliştiren",
+
     # tepki tablosu
     "tepki.baslik": "Mesnet tepkileri",
     "tepki.dugum": "Düğüm",
@@ -355,6 +364,10 @@ _EN = {
     "csv.kesme": "Shear [kN]",
     "csv.sehim": "Deflection [mm]",
     "csv.normal": "Axial [kN]",
+
+    "lisans.kaynak": "Source code (AGPL-3.0)",
+    "lisans.atif": "Analysis core: PyCBA — © Colin Caprani, AGPL-3.0",
+    "lisans.gelistiren": "Developed by",
 
     "tepki.baslik": "Support reactions",
     "tepki.dugum": "Node",

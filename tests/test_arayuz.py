@@ -87,6 +87,75 @@ def test_yalniz_cokme_ile_sonuc_uretilir():
     assert kartlar["Min. sehim [mm]"] == "-10.00"
 
 
+def test_sema_olcegi_icerikten_etkilenmez():
+    """Aynı kirişte çizim ölçeği (metre başına piksel) her içerikte aynı olmalı.
+
+    PyCBA şemayı `adjustable="box"` ile eşit en-boy oranında çizer: düşey veri
+    aralığı içerikle değiştiği için (tekil yük oku uzun, yukarı yük alta taşar,
+    moment yayı, tepki okları var/yok) eksen kutusu daralıp genişliyor, punto
+    cinsinden sabit olan yazı ve çizgi kalınlığı çizime göre 1.8 kata varan
+    oranda büyüyüp küçülüyordu — kullanıcı "yazılar büyüdü, çizgiler
+    kalınlaştı" diye görüyordu. `ui_cizim._sabitle_olcek` kutu genişliğini
+    sabitleyip figür YÜKSEKLİĞİNİ türetir; ölçek yalnız kiriş uzunluğuna bağlı
+    kalır. Yükseklik bilerek serbesttir, burada denetlenmez.
+    """
+    ortak = dict(spans=[6.0, 6.0, 6.0], EI=[30_000.0] * 3,
+                 supports=["pin", "roller", "roller", "pin"])
+    icerikler = {
+        "yük yok": (BeamModel(**ortak), False),
+        "UDL": (BeamModel(loads=[Load(i, "udl", [20.0]) for i in (1, 2, 3)],
+                          **ortak), True),
+        "tekil": (BeamModel(loads=[Load(2, "point", [50.0, 3.0])], **ortak), True),
+        "yukarı": (BeamModel(loads=[Load(2, "udl", [-20.0])], **ortak), True),
+        "moment": (BeamModel(loads=[Load(2, "moment", [50.0, 3.0])], **ortak), True),
+        "çökme": (BeamModel(loads=[Load(1, "udl", [20.0])],
+                            settlements={2: -0.01}, **ortak), True),
+    }
+    olcekler = {}
+    for ad, (m, tepkili) in icerikler.items():
+        sonuc = solve(m) if tepkili else None
+        fig, ax = plt.subplots(figsize=(10, 3.4))
+        try:
+            ciz_sema(ax, m, sonuc["reactions"] if sonuc else None, "tr")
+            fig.canvas.draw()
+            kutu = ax.get_window_extent(fig.canvas.get_renderer())
+            x0, x1 = ax.get_xlim()
+            olcekler[ad] = kutu.width / (x1 - x0)  # metre başına piksel
+        finally:
+            plt.close(fig)
+    ilk = next(iter(olcekler.values()))
+    for ad, olcek in olcekler.items():
+        assert olcek == pytest.approx(ilk, rel=1e-6), f"{ad}: ölçek kaymış ({olcekler})"
+
+
+def test_sema_EI_den_etkilenmez():
+    """EI değiştirmek şemayı DEĞİŞTİRMEMELİ — piksel piksel aynı kalmalı.
+
+    PyCBA, açıklıkların EI'si farklı olduğu anda kirişi düz çizgi yerine
+    derinliği EI^(1/3) ile değişen gri bir gövde olarak çiziyor; gövde ara
+    mesnet gliflerini, düğüm harflerini ve çökme etiketlerini yutuyordu
+    (bkz. ui_cizim.ciz_sema). Tepkiler EI'ye bağlı olduğu için karşılaştırma
+    tepkisiz yapılır: geriye kalan her şey (geometri, yük, mesnet, çökme)
+    EI'den bağımsızdır, dolayısıyla iki görüntü birebir eşit olmalıdır.
+    """
+    def _piksel(EI):
+        m = BeamModel(
+            spans=[6.0, 6.0, 6.0], EI=EI,
+            supports=["pin", "roller", "roller", "pin"],
+            loads=[Load(i, "udl", [20.0]) for i in (1, 2, 3)],
+            settlements={2: -0.01},
+        )
+        fig, ax = plt.subplots(figsize=(10, 3.4))
+        try:
+            ciz_sema(ax, m, None, "tr")
+            fig.canvas.draw()
+            return bytes(fig.canvas.buffer_rgba())
+        finally:
+            plt.close(fig)
+
+    assert _piksel([30_000.0] * 3) == _piksel([30_000.0, 90_000.0, 15_000.0])
+
+
 @pytest.mark.parametrize("n_span", [1, 2, 3, 6, 8])
 def test_sema_cokme_etiketleri_cakismaz(n_span):
     """Çökme etiketleri birbirine, düğüm harflerine ve eksen kenarına değmemeli.

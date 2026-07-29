@@ -17,7 +17,7 @@ from core import (
 )
 from ui_cizim import NORMAL_KUVVET_YESILI, ciz_sema
 from ui_dil import DILLER, VARSAYILAN_DIL, cevir
-from ui_tema import enjekte_tema, hero_baslik, tepki_tablosu
+from ui_tema import altbilgi, enjekte_tema, hero_baslik, tepki_tablosu
 
 # Yük parametresi -> birim. Birimler dilden bağımsızdır (kN, m, kNm²); etiketler
 # katalogdadır ("param.w" vb., bkz. ui_dil.py).
@@ -25,6 +25,14 @@ PARAM_UNITS = {
     "w": "kN/m", "w1": "kN/m", "w2": "kN/m", "P": "kN", "M": "kNm",
     "a": "m", "c": "m", "N": "kN", "n": "kN/m",
 }
+
+# Kenar çubuğu altbilgisi. KAYNAK_URL, AGPL 13. maddesi gereği çalışan
+# uygulamada bulunmak zorunda; diğer ikisi künye. Adres tam şemayla yazılır —
+# "www..." ile başlayan bir markdown bağlantısı GÖRECELİ sayılıp uygulamanın
+# kendi adresine eklenir ve kırık çıkar.
+KAYNAK_URL = "https://github.com/halilacc/pyCBA-UI"
+GELISTIRICI = "Halil Reis Acir"
+LINKEDIN_URL = "https://www.linkedin.com/in/halil-reis-acir"
 
 # Dil: kenar çubuğundaki seçim kutusu "dil"i yazar; tema modunda olduğu gibi
 # burada (bir sonraki rerun'da) okunur. Widget aşağıda çizilir ama Streamlit her
@@ -283,6 +291,15 @@ with st.sidebar:
     goster_M = st.toggle(t("gorunum.M"), value=True, key="goster_M")
     goster_D = st.toggle(t("gorunum.D"), value=True, key="goster_D")
 
+    # -------------------------------------------------------------- lisans
+    # AGPL 13. madde: yazılım ağ üzerinden kullandırıldığında (Streamlit Cloud)
+    # kullanıcılara kaynak kod SUNULMAK zorunda. Depodaki LICENSE/NOTICE tek
+    # başına yetmez — bağlantı çalışan uygulamada olmalı. Kenar çubuğunun
+    # dibinde durur: her sayfada görünür, akışı bölmez. Ayrıntı: NOTICE.
+    st.divider()
+    altbilgi(t("lisans.kaynak"), KAYNAK_URL, t("lisans.atif"),
+             t("lisans.gelistiren"), GELISTIRICI, LINKEDIN_URL)
+
     # Bayrak burada tüketilir: kenar çubuğunun TAMAMI çizildi, hiçbir widget'ın
     # durumu çöpe gitmez (bkz. bloğun başındaki not). Ana alan bu çalıştırmada
     # hiç hesaplanmaz — çözüm ve grafikler boşuna kurulmuş olmaz.
@@ -393,11 +410,15 @@ if errors:
 # yapılabiliyorsa mesnet tepkileri de ok olarak şemanın üzerine eklenir.
 # Şema üç ayrı akışta (yük yok / çözülemedi / normal) çizildiği için tek
 # yardımcıya alındı; "Görünüm" toggle'ı kapalıysa hiçbirinde çizilmez.
-def _sema_ciz(reactions=None, yukseklik=2.6):
+def _sema_ciz(reactions=None):
     if not goster_sema:
         return
     st.subheader(t("sema.baslik"))
-    fig_schema, ax_schema = plt.subplots(figsize=(10, yukseklik))
+    # Yükseklik burada BELİRLEYİCİ DEĞİL: ciz_sema, çizim ölçeği içerikten
+    # etkilenmesin diye figürü kendisi yeniden boyutlandırır (bkz.
+    # ui_cizim._sabitle_olcek). Önceden burada tepkili/tepkisiz diye 3.4/2.6
+    # veriliyordu ve iki şema arasında ölçek gözle görülür şekilde sıçrıyordu.
+    fig_schema, ax_schema = plt.subplots(figsize=(10, 3.4))
     ciz_sema(ax_schema, model, reactions, dil)
     st.pyplot(fig_schema, width="stretch")
     plt.close(fig_schema)
@@ -420,8 +441,8 @@ except SolverError as e:
     st.error(str(e))
     st.stop()
 
-# Şema + mesnet tepki okları (oklar/etiketler için biraz daha yüksek figür).
-_sema_ciz(result["reactions"], yukseklik=3.4)
+# Şema + mesnet tepki okları.
+_sema_ciz(result["reactions"])
 
 # ------------------------------------------------------------------ sonuçlar
 st.subheader(t("sonuclar.baslik"))
