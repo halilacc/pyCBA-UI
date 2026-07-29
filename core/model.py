@@ -37,14 +37,6 @@ LOAD_TYPES = {
 # PyCBA'ya çevrilmeyen, core/axial.py'nin çözdüğü yük tipleri.
 AXIAL_KINDS = {k for k, v in LOAD_TYPES.items() if v[0] is None}
 
-# Yük sınıfı: G sabit (kalıcı), Q hareketli (değişken). Yalnız Q patternlenir —
-# zarf hesabında açıklıklara ayrı ayrı konup kaldırılır (bkz. core/zarf.py).
-LOAD_CLASSES = ("G", "Q")
-
-# ŞİDDET parametreleri: zarf hesabında yük katsayısıyla (γ) çarpılan değerler.
-# Konum parametreleri (a, c) ölçeklenmez — yükün yeri katsayıyla değişmez.
-SIDDET_PARAMS = {"w", "w1", "w2", "P", "M", "N", "n"}
-
 
 def check_load_position(kind: str, values: List[float], L: float,
                         dil: str = None) -> Optional[str]:
@@ -83,29 +75,11 @@ class Load:
     kind : LOAD_TYPES anahtarlarından biri
     values : LOAD_TYPES[kind] parametre sırasıyla sayısal değerler
              (trapez için a=c=0 verilirse tüm açıklığa yayılır)
-    sinif : "G" sabit / "Q" hareketli yük. Yalnız zarf hesabını (core/zarf.py)
-            ilgilendirir; tek bir çözümde (solve) etkisi yoktur. Varsayılan "G",
-            böylece sınıf bilmeyen eski çağrılar ve testler aynı davranır.
-            Eksenel yükler her zaman G'dir (patternlenmez; bkz. validate).
     """
 
     span: int
     kind: str
     values: List[float] = field(default_factory=list)
-    sinif: str = "G"
-
-    def scaled(self, k: float) -> "Load":
-        """Şiddetleri `k` ile çarpılmış bir kopya döndür (konumlar korunur).
-
-        Zarf hesabında yük katsayılarını (γ) uygulamak için kullanılır; özgün
-        yük nesnesi değişmez.
-        """
-        _, _, params = LOAD_TYPES[self.kind]
-        return Load(
-            span=self.span, kind=self.kind, sinif=self.sinif,
-            values=[float(v) * k if p in SIDDET_PARAMS else float(v)
-                    for p, v in zip(params, self.values)],
-        )
 
     def check_params(self, dil: str = None) -> None:
         """Parametre sayısını denetle; uyuşmazlıkta ValueError."""
@@ -137,12 +111,12 @@ def _split_load(ld: "Load", parcalar: List[tuple]) -> List["Load"]:
     açıklık için satır üretilmez).
     """
     if len(parcalar) == 1:  # bölünme yok
-        return [Load(parcalar[0][0], ld.kind, list(ld.values), ld.sinif)]
+        return [Load(parcalar[0][0], ld.kind, list(ld.values))]
 
-    kind, sinif = ld.kind, ld.sinif
+    kind = ld.kind
     if kind in ("udl", "axial_udl"):
         # Tüm açıklığa yayılı: her alt açıklıkta aynı şiddetle tüm açıklık.
-        return [Load(ns, kind, list(ld.values), sinif) for ns, _, _ in parcalar]
+        return [Load(ns, kind, list(ld.values)) for ns, _, _ in parcalar]
 
     if kind in ("point", "moment", "axial_point"):
         P, a = ld.values
@@ -150,9 +124,9 @@ def _split_load(ld: "Load", parcalar: List[tuple]) -> List["Load"]:
             # Kesim noktasına tam denk gelen yük SAĞDAKİ alt açıklığın sol ucuna
             # verilir (a=0); son parçada sağ uç da dahildir.
             if s <= a < e or (ns == parcalar[-1][0] and a <= e + 1e-9):
-                return [Load(ns, kind, [P, min(max(a - s, 0.0), e - s)], sinif)]
+                return [Load(ns, kind, [P, min(max(a - s, 0.0), e - s)])]
         ns, s, e = parcalar[-1]
-        return [Load(ns, kind, [P, e - s], sinif)]
+        return [Load(ns, kind, [P, e - s])]
 
     if kind == "partial_udl":
         w, a, c = ld.values
@@ -160,7 +134,7 @@ def _split_load(ld: "Load", parcalar: List[tuple]) -> List["Load"]:
         for ns, s, e in parcalar:
             ov_s, ov_e = max(a, s), min(a + c, e)
             if ov_e - ov_s > 1e-9:
-                out.append(Load(ns, kind, [w, ov_s - s, ov_e - ov_s], sinif))
+                out.append(Load(ns, kind, [w, ov_s - s, ov_e - ov_s]))
         return out
 
     if kind == "trapezoid":
@@ -177,10 +151,9 @@ def _split_load(ld: "Load", parcalar: List[tuple]) -> List["Load"]:
             ws = w1 + (w2 - w1) * (ov_s - a) / c
             we = w1 + (w2 - w1) * (ov_e - a) / c
             if abs(ov_s - s) < 1e-9 and abs(ov_e - e) < 1e-9:
-                # alt açıklığın tamamı
-                out.append(Load(ns, kind, [ws, we, 0.0, 0.0], sinif))
+                out.append(Load(ns, kind, [ws, we, 0.0, 0.0]))  # alt açıklığın tamamı
             else:
-                out.append(Load(ns, kind, [ws, we, ov_s - s, ov_e - ov_s], sinif))
+                out.append(Load(ns, kind, [ws, we, ov_s - s, ov_e - ov_s]))
         return out
 
     raise ValueError(f"'{kind}' yükü açıklık içi mafsalla bölünemiyor.")
@@ -292,13 +265,6 @@ class BeamModel:
                 continue
             if not (1 <= ld.span <= self.n_spans):
                 hata("yuk_aciklik_gecersiz", i=i, sp=ld.span, n_span=self.n_spans)
-            if ld.sinif not in LOAD_CLASSES:
-                hata("yuk_sinifi_gecersiz", i=i, sinif=ld.sinif,
-                     adlar=", ".join(LOAD_CLASSES))
-            elif ld.sinif != "G" and ld.kind in AXIAL_KINDS:
-                # Eksenel yük patternlenmez (düşey yük düzenlemesinin konusu
-                # değil); "Q" verilmesi sessizce yok sayılmak yerine söylenir.
-                hata("eksenel_yuk_sinifi", i=i)
             try:
                 ld.check_params(dil)
             except ValueError as e:

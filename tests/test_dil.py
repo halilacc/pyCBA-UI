@@ -93,10 +93,7 @@ def test_ceviriler_gercekten_farkli():
     """
     muaf = {"csv.x", "csv.moment", "param.M", "yuk.moment", "panel.moment",
             "gorunum.M", "kart.konum", "kart.min", "kart.min_baslik",
-            "buyukluk.moment",
-            # yönetmelik adları özel addır; "min." iki dilde de aynı kısaltmadır
-            "yonetmelik.eurocode", "yonetmelik.ts500",
-            "zarf.panel_min", "csv.moment_min"}
+            "buyukluk.moment"}
     ayni = [
         k for k, v in ui_dil.METINLER["tr"].items()
         if k not in muaf and v == ui_dil.METINLER["en"][k]

@@ -53,8 +53,8 @@ değişikliği doğrulamanın en hızlı yolu:
 `at = AppTest.from_file("app.py"); at.session_state["dil"] = "en"; at.run()`
 sonra `at.exception`, `at.metric`, `at.error`, `at.sidebar.header` incelenir.
 Plotly figürü de denetlenebilir: `json.loads(at.get("plotly_chart")[i].proto.spec)`
-— `.figure` YOKTUR ve `y` dizileri ikili (typed array) gelir, iz adı/dolgusu/
-ekseni okunur (bkz. `test_zarf_bandi_alt_zarftan_doldurulur`).
+— `.figure` özniteliği YOKTUR ve `y` dizileri ikili (typed array) gelir; iz
+adı/dolgusu/ekseni okunabilir, sayısal değerler için çekirdeğe bak.
 
 ## Mimari
 
@@ -94,21 +94,6 @@ değildir; arayüz ileride Gradio/Flask ile değiştirilebilmelidir. UI mantığ
   dizilerinin ilk/son (tekrarlanan) dolgu istasyonlarına sehim yazmaz, 0 bırakır
   — mesnette görünmez ama çöken mesnette ve açıklık içi mafsalın serbest
   düğümünde eğri oraya "düşer". PyCBA kendi çiziminde `m.D[1:-1]` ile atar.
-- `core/zarf.py` — yük düzenleri ve zarf. `Load.sinif` "G" (sabit) / "Q"
-  (hareketli); yalnız buradaki hesabı ilgilendirir, tek çözümü değiştirmez.
-  `duzenler(n)` = tüm / tek / çift / her ara mesnedin iki komşu açıklığı
-  (aynı açıklık kümesini veren düzenler tekilleşir). `olcekli_model` bir düzenin
-  YÜKLÜ açıklıklarına (γ_G,maks, γ_Q,maks), diğerlerine (γ_G,min, γ_Q,min)
-  uygular — **PyCBA `pattern.py:142-147` ile aynı kural**; sabit yük de açıklık
-  açıklık patternlenir (γ_G'yi tüm kirişe tek değer vermek YANLIŞ, zarfı
-  daraltır). `solve_envelope` her düzeni `solve()` ile çözüp noktasal
-  maks/min alır. Zarf dizileri SIFIRDAN başlar (`Mmax>=0`, `Mmin<=0`) — PyCBA
-  geleneği (`results.py:468`), zarf ekseni sarar; tepkiler kenetlenmez (hep
-  kalkan bir mesnet 0 görünürdü). Yük satırları silinmez, şiddetleri çarpılır:
-  istasyon ızgarası her düzende aynı kalmalı ki noktasal karşılaştırma geçerli
-  olsun. Çökme kalıcıdır, patternlenmez. PyCBA `LoadPattern` BİLEREK
-  kullanılmıyor (sehim zarfı, kullanıcı düğüm no'su, Gerber uyumu); M/V zarfı
-  PyCBA ile birebir aynı — muhafızı `tests/test_core.py`.
 - `app.py` — yalnızca sunum: sidebar'da girdi, `st.session_state.loads` içinde yük
   listesi, sonuçlar Plotly ile (`plot_results(backend="plotly")`).
 
@@ -131,6 +116,12 @@ Dikkat edilecekler:
   Muhafızı: `tests/test_arayuz.py`.
 - Sehim `D` metre cinsindendir; UI mm'ye çevirerek gösterir. Mesnet çökmesi de
   öyle: çekirdek m, arayüz mm.
+- **PyCBA'nın M/V dizilerinde eleman uçları eksene KAPANIR:** her elemanın ilk ve
+  son istasyonu tekrarlanır ve oraya 0 yazılır, yani ara mesnette M dizisinde iki
+  sıfır bulunur. Artefakt gibi görünür ama bilinçli çizim geleneğidir — PyCBA
+  bunu `results.py:329`da (`deflection_curve` docstring'i) "diyagram eksene
+  kapansın diye" diye açıklar. DÜZELTMEYE KALKMA. Aynı dolgu SEHİMDE yanlıştır;
+  orası `solver._sehim_dizisi` ile onarılır (PyCBA da kendi çiziminde atar).
 - **Şemada EI'nin görsel karşılığı YOKTUR** (bilerek): `ciz_sema` çiziciye
   EI'leri eşitlenmiş bir kopya verir. PyCBA açıklıkların EI'si farklı olunca
   kirişi derinliği EI^(1/3) ile değişen gri gövde olarak çiziyor; gövde ara
@@ -145,14 +136,6 @@ Dikkat edilecekler:
   `ax.get_position()` varsayılanı AKTİF (daraltılmış) kutudur; dikey pay için
   `original=True` şart, yoksa hesap kendi kendini doğrulayan sabit noktaya
   düşer ve hiçbir şey değişmez.
-- **PyCBA M/V dizilerinde eleman uçları eksene KAPANIR** (`results.py:329`daki
-  kendi açıklaması): her elemanın ilk/son istasyonu tekrarlanır ve oraya 0
-  yazılır, diyagram mesnette sıfıra iner. Bu bilinçli çizim geleneğidir, hata
-  değil — düzeltmeye kalkma. (Sehimde aynı dolgu YANLIŞ olurdu, orası
-  `_sehim_dizisi` ile onarılır; PyCBA da `deflection_curve()`te atar.)
-- Zarf, katsayılı (tasarım) yüklerle; "Sonuçlar" bölümü katsayısız
-  (karakteristik) yüklerle hesaplanır. İki bölüm aynı sayfada durduğu için bu
-  fark `zarf.aciklama` ile AÇIKÇA yazılır; kaldırma.
 - Çökme İZOSTATİK sistemde kesit tesiri üretmez (yalnız rijit yer değiştirme);
   `app.py` bunu `static_degree() == 0` iken `st.info` ile söyler — sıfır M/V
   "hesap çalışmadı" diye okunmasın.
@@ -177,10 +160,6 @@ Kural: `app.py`/`ui_cizim.py` içine kullanıcıya görünen sabit dize YAZMA;
 anahtar ekle. Anahtarlar nokta ile gruplanır (`mesnet.pin`, `yuk.udl`,
 `ipucu.udl`, `param.w`). Birimler (kN, m, kNm²) çeviriye girmez —
 `app.PARAM_UNITS` dilden bağımsızdır.
-
-Aynı "sonek çekirdekten gelir" deseni yük düzenlerinde de var: `duzen.<anahtar>`
-(`core.zarf.Duzen.anahtar`) ve `sinif.<G|Q>` (`core.LOAD_CLASSES`). Sınıfın KISA
-kodu (G/Q) çeviriye girmez, "kN" gibi modelin verisidir.
 
 Yeni yük tipi / mesnet tipi eklerken `ui_dil.py`'ye `yuk.<kind>` + `ipucu.<kind>`
 (veya `mesnet.<tip>`) satırlarını **iki dile de** ekle; bu anahtarlar kod içinde
@@ -220,11 +199,6 @@ metin `#1C1B19` veya `rgba(28,27,25,0.6)`.
 
 Taramanın **yanlış pozitifleri** (düzeltmeye kalkma, ölçüp doğrula):
 - `stCheckbox` içindeki 12×12 topuz açık olmalı (mor ray üzerinde).
-- `stRadioOption`ın SEÇİLİ işareti: 16×16 halka aksan, ortasındaki 6×6 nokta
-  beyaz — doğrudur. SEÇİLMEMİŞ olanı ise açık temada kalıyordu (halka #E7E5E0,
-  iç #F3F2EF); kural eklendi, iç yüzey kenar çubuğu zeminine çekilip 1 px halka
-  bırakılır. Seçici yapıya bağlıdır (`> div > div > div:first-child`), seçim
-  durumu react-aria'nın `data-selected` özniteliğidir.
 - `stSidebarCollapseButton` / `stExpandSidebarButton` / `stMainMenuButton`
   ikonları koyu ÖLÇÜLÜR ama ekranda açıktır: bunlara `filter: invert(1)`
   uygulanır, `getComputedStyle` filtre öncesi rengi bildirir.

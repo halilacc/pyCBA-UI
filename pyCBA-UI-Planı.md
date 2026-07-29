@@ -114,12 +114,23 @@ aşamada verilecek.
 
 # Yük Düzenleri / Zarf Diyagramları — Plan (2026-07-29)
 
-> **DURUM: uygulandı (2026-07-29).** `core/zarf.py` + arayüz. Plandan iki sapma:
-> (1) sabit yük de açıklık açıklık patternlenir — yüklü açıklıkta γ_G,maks,
-> diğerlerinde γ_G,min (PyCBA `pattern.py` kuralı; γ_G'yi tüm kirişe tek değer
-> vermek zarfı daraltıyordu). (2) "hareketli yük yok" uyarısı `core/mesajlar.py`
-> yerine `ui_dil.py`'de: çekirdek bunu bayrak (`hareketli_var`) olarak bildirir,
-> metni sunum katmanı seçer. Ayrıntı: CLAUDE.md "Mimari".
+> **DURUM: UYGULANDI VE GERİ ALINDI (2026-07-29).** `core/zarf.py` + arayüz
+> yazıldı (commit `d0cff53`), aynı gün kullanıcı kararıyla tümüyle kaldırıldı.
+> Sayısal sonuçlar doğruydu (M/V zarfı PyCBA `LoadPattern` ile birebir aynı,
+> analitik vakalarla da doğrulandı); kaldırılma nedeni **sıfıra kenetleme
+> konvansiyonu**: gerçek bir 2 açıklıklı örnekte istasyonların %39'unda moment
+> alt zarfı, %45'inde kesme alt zarfı sahte sıfır çıkıyor (gerçek değer ör.
+> +270 kNm iken zarf 0 gösteriyor). Bant her yerde eksene yapıştığı için ekranda
+> zarf değil, tek diyagramın dolgusu görünüyordu.
+>
+> **Yeniden ele alınırsa yapılacak tek şey:** kenetlemeyi kaldırıp ham maks/min
+> yazmak (`_zarf`de `np.maximum(..., 0)` / `np.minimum(..., 0)` sarmalarını at).
+> Kenetleme PyCBA'nın köprü/hareketli yük mirasıdır — orada "araç kirişte yok"
+> gerçek bir durumdur, yük düzenlemesinde ise γ_G,min ≠ 0 olduğu için kiriş
+> hiçbir düzende yüksüz değildir. PyCBA `Envelopes`'a geçmek bunu ÇÖZMEZ (aynı
+> kenetleme onda da var), üstelik sehim zarfını kaybettirir.
+>
+> Aşağıdaki plan ve tespitler, yeniden başlanırsa diye olduğu gibi bırakıldı.
 
 Kararlar kullanıcıyla birlikte alındı; kodlama başlamadan
 önce buradaki tespitleri okuyun — ikisi ölçümle bulundu, tahminle değil.

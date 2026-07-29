@@ -512,21 +512,6 @@ label, [data-testid="stWidgetLabel"] *, [data-testid="stCaptionContainer"], [dat
 [data-testid="stNumberInputStepDown"]:not(:disabled) * {
   color: var(--pc-ink) !important;
 }
-/* Radyo düğmesi (Yük sınıfı G/Q). SEÇİLİ olan zaten doğru: 16 px halka aksan
-   rengini (ölçüm: rgb(67,56,202)), ortadaki 6 px nokta beyazı alıyor. SEÇİLMEMİŞ
-   olan ise açık temada kalıyordu — halka #E7E5E0, iç yüzey #F3F2EF (DOM'dan
-   ölçüldü), koyu kenar çubuğunda açık gri disk gibi duruyordu. İç yüzey
-   kenar çubuğu zeminine çekilince geriye 1 px'lik halka kalır; alışılmış
-   "boş radyo" görüntüsü budur.
-   Seçici emotion sınıfına DEĞİL yapıya bağlanır (sınıflar sürümle değişir):
-   label[stRadioOption] > div > div > div:first-child = işaret halkası, onun tek
-   çocuğu = iç yüzey. Seçim durumu react-aria'nın `data-selected` özniteliğidir. */
-[data-testid="stRadioOption"]:not([data-selected="true"]) > div > div > div:first-child {
-  background-color: var(--pc-muted) !important;
-}
-[data-testid="stRadioOption"]:not([data-selected="true"]) > div > div > div:first-child > div {
-  background-color: var(--pc-surface2) !important;
-}
 /* Açılır listeler (selectbox + multiselect). Portal ile <body> altına basıldığı
    için app kapsayıcısını hedefleyen kurallar ulaşmıyordu; testid/baseweb ile
    doğrudan hedeflenir. DOM'dan ölçülen açık tema değerleri: popover #F3F2EF,

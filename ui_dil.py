@@ -76,15 +76,6 @@ _TR = {
     "yuk.ekle": "➕ Yük ekle",
     "yuk.siddet_sifir": "Yük şiddeti 0 — sıfırdan farklı bir değer girin.",
     "yuk.siddet_sifir_duzenle": "Yük şiddeti 0 olamaz — silmek için 🗑️ kullanın.",
-    # yük sınıfı (G/Q) — yalnız zarf hesabını ilgilendirir (bkz. core/zarf.py)
-    "yuk.sinif": "Yük sınıfı",
-    "yuk.sinif_yardim": "Sabit (G) yük her açıklıkta hep vardır; hareketli (Q) "
-                        "yük açıklıklara ayrı ayrı konup kaldırılarak zarf "
-                        "hesaplanır. Tek çözümün sonucunu değiştirmez.",
-    # Yük listesi satırında sınıfın KISA kodu (G/Q) gösterilir; o kod modelin
-    # kendi verisidir (core.LOAD_CLASSES), çeviriye girmez — "kN" gibi.
-    "sinif.G": "Sabit (G)",
-    "sinif.Q": "Hareketli (Q)",
 
     # yük tipi adları (core.LOAD_TYPES anahtarlarıyla aynı sonek)
     "yuk.udl": "Yayılı yük (UDL)",
@@ -132,37 +123,11 @@ _TR = {
     "gorunum.M": "Moment (M)",
     "gorunum.D": "Sehim",
 
-    # --- 5. yük düzenleri / zarf ---
-    "bolum.zarf": "5. Yük düzenleri",
-    "zarf.hesapla": "Zarf diyagramlarını hesapla",
-    "zarf.yardim": "Hareketli yükü açıklıklara ayrı ayrı koyarak her kesitteki "
-                   "en elverişsiz değeri bulur. Sonuçlar bölümünün altına ayrı "
-                   "bir başlık olarak eklenir.",
-    "zarf.yonetmelik": "Katsayı seti",
-    "yonetmelik.eurocode": "Eurocode (EN 1990, 6.10)",
-    "yonetmelik.ts500": "TS 500 (6.2.6)",
-    "yonetmelik.ozel": "Özel",
-    "zarf.gG_maks": "γ_G,maks — sabit yük, elverişsiz",
-    "zarf.gG_min": "γ_G,min — sabit yük, elverişli",
-    "zarf.gQ_maks": "γ_Q,maks — hareketli yük, yüklü açıklık",
-    "zarf.gQ_min": "γ_Q,min — hareketli yük, yüksüz açıklık",
-    # Katsayılar iki haneyle yazılır: ":g" ile 1.0 "1" görünüp 1.35'in yanında
-    # kırık bir liste oluyordu.
-    "zarf.ozet": "Yüklü açıklık: {gmaks:.2f}G + {qmaks:.2f}Q · diğer açıklıklar: "
-                 "{gmin:.2f}G + {qmin:.2f}Q",
-
-    # düzen adları (core.zarf.Duzen.anahtar ile aynı sonek)
-    "duzen.tum": "Tüm açıklıklar yüklü",
-    "duzen.tek": "Tek numaralı açıklıklar yüklü",
-    "duzen.cift": "Çift numaralı açıklıklar yüklü",
-    "duzen.mesnet": "Düğüm {n} komşu açıklıkları yüklü",
-    "duzen.yok": "zarf eksene kenetli (bkz. açıklama)",
-
     # --- yük listesi ---
     "liste.baslik": "Tanımlı yükler",
     "liste.bos": "Henüz yük eklenmedi — kenar çubuğundan ekleyin.",
     "liste.duzenle_ipucu": "Bir yükü düzenlemek için başlığına tıklayıp açın.",
-    "liste.satir": "**{i}.** {ad} — Açıklık {sp} · {sinif} — {ayrinti}",
+    "liste.satir": "**{i}.** {ad} — Açıklık {sp} — {ayrinti}",
     "liste.kaydet": "💾 Kaydet",
     "liste.sil": "🗑️ Sil",
 
@@ -216,43 +181,8 @@ _TR = {
     "panel.moment": "Moment",
     "panel.sehim": "Sehim",
 
-    # --- zarf bölümü (ana alan) ---
-    "zarf.baslik": "Zarf diyagramları",
-    "zarf.aciklama": "Her kesitte, bütün yük düzenleri arasından en elverişsiz "
-                     "değer. **Yükler katsayılıdır (tasarım değerleri)** — "
-                     "yukarıdaki *Sonuçlar* bölümü katsayısız (karakteristik) "
-                     "yüklerle hesaplanır, iki bölümün sayıları bu yüzden farklıdır.",
-    "zarf.duzen_sayisi": "{n} yük düzeni çözüldü · {ozet}",
-    "zarf.hareketli_yok": "Tanımlı hareketli (Q) yük yok. Zarf yalnız sabit "
-                          "yükün açıklık açıklık azaltılmasını yansıtır; "
-                          "hareketli yük için yük sınıfını **Hareketli (Q)** "
-                          "seçin.",
-    "zarf.kenetleme": "Zarf, PyCBA geleneğiyle eksene kenetlenir: bir kesitte "
-                      "hiçbir düzen pozitif moment üretmiyorsa maksimum 0 "
-                      "yazılır (zarf ekseni sarar).",
-    "zarf.yoneten": "Yöneten düzen: {ad}",
-    "zarf.diyagram_baslik": "Zarf Diyagramları (katsayılı yükler)",
-    "zarf.panel_maks": "{ad} maks.",
-    "zarf.panel_min": "{ad} min.",
-    "zarf.tepki_baslik": "Tepki zarfı",
-    "zarf.kalkma": "Mesnet kalkması: {dugumler} numaralı düğümde minimum düşey "
-                   "tepki negatif. Bu mesnet bazı yük düzenlerinde çekme alır — "
-                   "ankraj gerekir.",
-    "tepki.dusey_maks": "Maks. düşey tepki [kN]",
-    "tepki.dusey_min": "Min. düşey tepki [kN]",
-    "tepki.moment_maks": "Maks. moment tepkisi [kNm]",
-    "tepki.moment_min": "Min. moment tepkisi [kNm]",
-
     # CSV
     "csv.diyagram_buton": "⬇️ Diyagram verileri (CSV)",
-    "csv.zarf_buton": "⬇️ Zarf verileri (CSV)",
-    "csv.zarf_dosya": "zarf_moment_kesme_sehim.csv",
-    "csv.moment_maks": "Moment maks. [kNm]",
-    "csv.moment_min": "Moment min. [kNm]",
-    "csv.kesme_maks": "Kesme maks. [kN]",
-    "csv.kesme_min": "Kesme min. [kN]",
-    "csv.sehim_maks": "Sehim maks. [mm]",
-    "csv.sehim_min": "Sehim min. [mm]",
     "csv.diyagram_dosya": "diyagram_moment_kesme_sehim.csv",
     "csv.normal_buton": "⬇️ Normal kuvvet verileri (CSV)",
     "csv.normal_dosya": "diyagram_normal_kuvvet.csv",
@@ -331,13 +261,6 @@ _EN = {
     "yuk.ekle": "➕ Add load",
     "yuk.siddet_sifir": "Load magnitude is 0 — enter a non-zero value.",
     "yuk.siddet_sifir_duzenle": "Load magnitude cannot be 0 — use 🗑️ to delete it.",
-    "yuk.sinif": "Load class",
-    "yuk.sinif_yardim": "A permanent (G) load is always present on every span; "
-                        "an imposed (Q) load is placed on and removed from "
-                        "individual spans to build the envelope. It does not "
-                        "change the result of a single analysis.",
-    "sinif.G": "Permanent (G)",
-    "sinif.Q": "Imposed (Q)",
 
     "yuk.udl": "Uniformly distributed load (UDL)",
     "yuk.point": "Point load",
@@ -383,32 +306,10 @@ _EN = {
     "gorunum.M": "Moment (M)",
     "gorunum.D": "Deflection",
 
-    "bolum.zarf": "5. Load patterns",
-    "zarf.hesapla": "Compute envelope diagrams",
-    "zarf.yardim": "Places the imposed load on individual spans to find the "
-                   "most unfavourable value at every section. Added as a "
-                   "separate section below the results.",
-    "zarf.yonetmelik": "Factor set",
-    "yonetmelik.eurocode": "Eurocode (EN 1990, 6.10)",
-    "yonetmelik.ts500": "TS 500 (6.2.6)",
-    "yonetmelik.ozel": "Custom",
-    "zarf.gG_maks": "γ_G,max — permanent load, unfavourable",
-    "zarf.gG_min": "γ_G,min — permanent load, favourable",
-    "zarf.gQ_maks": "γ_Q,max — imposed load, loaded span",
-    "zarf.gQ_min": "γ_Q,min — imposed load, unloaded span",
-    "zarf.ozet": "Loaded span: {gmaks:.2f}G + {qmaks:.2f}Q · other spans: "
-                 "{gmin:.2f}G + {qmin:.2f}Q",
-
-    "duzen.tum": "All spans loaded",
-    "duzen.tek": "Odd-numbered spans loaded",
-    "duzen.cift": "Even-numbered spans loaded",
-    "duzen.mesnet": "Spans adjacent to node {n} loaded",
-    "duzen.yok": "envelope clamped to the axis (see the note)",
-
     "liste.baslik": "Defined loads",
     "liste.bos": "No loads added yet — add one from the sidebar.",
     "liste.duzenle_ipucu": "Click a load's title to open and edit it.",
-    "liste.satir": "**{i}.** {ad} — Span {sp} · {sinif} — {ayrinti}",
+    "liste.satir": "**{i}.** {ad} — Span {sp} — {ayrinti}",
     "liste.kaydet": "💾 Save",
     "liste.sil": "🗑️ Delete",
 
@@ -454,43 +355,7 @@ _EN = {
     "panel.moment": "Moment",
     "panel.sehim": "Deflection",
 
-    "zarf.baslik": "Envelope diagrams",
-    "zarf.aciklama": "The most unfavourable value at every section across all "
-                     "load patterns. **Loads are factored (design values)** — "
-                     "the *Results* section above uses unfactored "
-                     "(characteristic) loads, which is why the two sets of "
-                     "numbers differ.",
-    "zarf.duzen_sayisi": "{n} load pattern(s) solved · {ozet}",
-    "zarf.hareketli_yok": "No imposed (Q) load is defined. The envelope only "
-                          "reflects the span-by-span reduction of the permanent "
-                          "load; for an imposed load set the load class to "
-                          "**Imposed (Q)**.",
-    "zarf.kenetleme": "Following the PyCBA convention the envelope is clamped "
-                      "to the axis: where no pattern produces a positive "
-                      "moment the maximum is written as 0 (the envelope wraps "
-                      "the axis).",
-    "zarf.yoneten": "Governing pattern: {ad}",
-    "zarf.diyagram_baslik": "Envelope Diagrams (factored loads)",
-    "zarf.panel_maks": "{ad} max.",
-    "zarf.panel_min": "{ad} min.",
-    "zarf.tepki_baslik": "Reaction envelope",
-    "zarf.kalkma": "Support uplift: the minimum vertical reaction is negative "
-                   "at node(s) {dugumler}. That support goes into tension "
-                   "under some load patterns — anchorage is required.",
-    "tepki.dusey_maks": "Max. vertical reaction [kN]",
-    "tepki.dusey_min": "Min. vertical reaction [kN]",
-    "tepki.moment_maks": "Max. moment reaction [kNm]",
-    "tepki.moment_min": "Min. moment reaction [kNm]",
-
     "csv.diyagram_buton": "⬇️ Diagram data (CSV)",
-    "csv.zarf_buton": "⬇️ Envelope data (CSV)",
-    "csv.zarf_dosya": "envelope_moment_shear_deflection.csv",
-    "csv.moment_maks": "Moment max. [kNm]",
-    "csv.moment_min": "Moment min. [kNm]",
-    "csv.kesme_maks": "Shear max. [kN]",
-    "csv.kesme_min": "Shear min. [kN]",
-    "csv.sehim_maks": "Deflection max. [mm]",
-    "csv.sehim_min": "Deflection min. [mm]",
     "csv.diyagram_dosya": "diagram_moment_shear_deflection.csv",
     "csv.normal_buton": "⬇️ Axial force data (CSV)",
     "csv.normal_dosya": "diagram_axial_force.csv",
