@@ -125,7 +125,9 @@ h1, h2, h3, [data-testid="stMetricValue"],
    Streamlit'in `stCaptionContainer * { color: ... }` kuralı içindeki bağlantıyı
    da soluklaştırıyordu. Kendi sınıfımızla hem punto hem renk bizde; shiny
    efekti de href yerine sınıfla hedeflenir (adres değişirse kural bozulmaz). */
-.pc-altbilgi { font-size: 1rem; line-height: 1.55; color: var(--pc-muted); }
+/* Punto: 1rem'den %10 küçük (16 px -> 14.4 px). Alt öğeler devralır; blokta
+   kendi puntosunu veren başka kural yok. */
+.pc-altbilgi { font-size: 0.9rem; line-height: 1.55; color: var(--pc-muted); }
 .pc-altbilgi a { color: var(--pc-acc); text-decoration: underline; }
 .pc-altbilgi__kunye { display: inline-block; }
 
