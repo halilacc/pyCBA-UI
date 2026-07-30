@@ -10,8 +10,8 @@ depo onun üstüne oturan sunum katmanı.
 ## Neden yazdım
 
 PyCBA'yı kullanmak için Python bilmek gerekiyor. `L`, `EI`, `supports` ve `LM`
-listelerini elle kurup analiz nesnesini çağırıyorsun. Yapı statiği dersini yeni
-alan biri için bu, çözmek istediği problemden daha büyük bir engel. Arayüz o
+listelerini elle kurup analiz nesnesini çağırıyorsun.
+Python bilmeyen biri için bu, çözmek istediği problemden daha büyük bir engel. Arayüz o
 engeli kaldırıyor; hesaba karışmıyor.
 
 ## Neler var
@@ -63,7 +63,7 @@ değil. Bir projeye koymadan önce sonucu kendi hesabınla karşılaştır.
 
 ## Bilinen sınırlar
 
-Bunlar eksik değil, kararlar. Gizlemek yerine yazıyorum:
+Bunlar eksik değil, kararlar.
 
 - Yük düzenlemesi ve zarf diyagramı yok. Yazmıştım, sonra kaldırdım. Zarfın
   eksene kenetlenmesi (PyCBA'nın çizim geleneği) bandı okunmaz hale getiriyordu,
@@ -84,7 +84,7 @@ mesajları `mesajlar.py`'de. `app.py` yalnızca sunum yapar. Arayüzü bir gün
 Gradio ya da Flask'a taşımak istersem çekirdeğe dokunmam gerekmesin diye böyle
 kuruldu. Arayüz metinleri de koddan ayrı: `ui_dil.py` iki dilli katalog.
 
-Katkı ya da hata bildirimi için issue açabilirsin.
+Katkı ya da hata bildirimi için issue açabilirsiniz.
 
 ## Lisans
 
