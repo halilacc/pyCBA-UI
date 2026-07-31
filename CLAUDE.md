@@ -291,8 +291,3 @@ bağlanmıyordu). İki tuzak ölçülerek bulundu:
   ile yapılır (Streamlit'in kendi kaydırma kabı var).
 GIF'i güncellerken uygulamayı ayrı bir portta başlat ve PID'yi öldürmeyi unutma
 (bkz. yukarıdaki "Streamlit yeniden başlatma" notu).
-
-## 2. Aşama (henüz yok)
-
-Kiriş fotoğrafından model çıkarma (LLM ile) planlanıyor; formu ön-dolduracak, `core/`
-değişmeyecek. Ayrıntı yerel plan dosyasında.

@@ -20,10 +20,10 @@ dist/
 .ipynb_checkpoints/
 
 # ---- Ortam değişkenleri / sırlar ----
-# Gerçek .env asla izlenmez; yalnızca .env.example şablonu depoda kalır.
+# Proje ortam değişkeni OKUMUYOR; bu kurallar yine de dursun ki ileride bir
+# .env doğarsa kazara izlenmesin.
 .env
 .env.*
-!.env.example
 *.key
 *.pem
 secrets.toml
