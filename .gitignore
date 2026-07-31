@@ -46,6 +46,5 @@ desktop.ini
 # Bunlar yerelde durur ama depoya girmez: uygulamayı çalıştırmak için gerekli
 # değiller, yalnızca geliştirme sırasında kullanılan not/yapılandırma dosyaları.
 .claude/
-CLAUDE.md
 pyCBA-UI-Planı.md
 ornek3_senin_kirisin.py
