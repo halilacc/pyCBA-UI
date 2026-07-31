@@ -5,14 +5,16 @@ forma giriyorsun; mesnet tepkileri, kesme ve moment diyagramları ve sehim eğri
 anında çıkıyor. Hesabı [PyCBA](https://github.com/ccaprani/pycba) yapıyor, bu
 depo onun üstüne oturan sunum katmanı.
 
+**Canlı sürüm:** https://pycba-ui-yap1.streamlit.app
+
 ![Uygulamanın ekran görüntüsü](docs/ekran.png)
 
 ## Neden yazdım
 
 PyCBA'yı kullanmak için Python bilmek gerekiyor. `L`, `EI`, `supports` ve `LM`
-listelerini elle kurup analiz nesnesini çağırıyorsun.
-Python bilmeyen biri için bu, çözmek istediği problemden daha büyük bir engel. Arayüz o
-engeli kaldırıyor; hesaba karışmıyor.
+listelerini elle kurup analiz nesnesini çağırıyorsun. Python bilmeyen biri için
+bu, çözmek istediği problemden daha büyük bir engel. Arayüz o engeli kaldırıyor;
+hesaba karışmıyor.
 
 ## Neler var
 
@@ -84,7 +86,7 @@ mesajları `mesajlar.py`'de. `app.py` yalnızca sunum yapar. Arayüzü bir gün
 Gradio ya da Flask'a taşımak istersem çekirdeğe dokunmam gerekmesin diye böyle
 kuruldu. Arayüz metinleri de koddan ayrı: `ui_dil.py` iki dilli katalog.
 
-Katkı ya da hata bildirimi için issue açabilirsiniz.
+Katkı ya da hata bildirimi için issue açabilirsin.
 
 ## Lisans
 
