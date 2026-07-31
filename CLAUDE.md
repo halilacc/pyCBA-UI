@@ -111,7 +111,9 @@ değildir; arayüz ileride Gradio/Flask ile değiştirilebilmelidir. UI mantığ
 
 PyCBA API referansı (LM satır formatları, `supports=` adları, sonuç erişimi) plan
 dosyasının "PyCBA API" bölümünde satır numaralarıyla belgelidir; kaynak
-`.venv/Lib/site-packages/pycba/`.
+`.venv/Lib/site-packages/pycba/`. **Plan dosyası depoda İZLENMEZ** (bkz.
+`.gitignore`) — dışarıdan gelen bir katkıcı ona ulaşamaz; ona hitap eden bir
+açıklama yazarken referansı plan dosyasına değil doğrudan PyCBA kaynağına ver.
 
 Dikkat edilecekler:
 - `Load.span` 1-tabanlıdır; `a` konumu her zaman açıklığın **sol ucundan** ölçülür.
@@ -128,6 +130,19 @@ Dikkat edilecekler:
   Muhafızı: `tests/test_arayuz.py`.
 - Sehim `D` metre cinsindendir; UI mm'ye çevirerek gösterir. Mesnet çökmesi de
   öyle: çekirdek m, arayüz mm.
+- **Diyagram ızgarası `solver.ISTASYON_SAYISI` (=1000) ile kurulur.** PyCBA
+  varsayılanı 100'dür ve ızgara eşit aralıklıdır — yük süreksizliklerine
+  istasyon EKLENMEZ (`results.py`: `xr = dx * np.arange(0, npts + 1)`). Tepe
+  değer iki istasyon arasına düşerse ekstrem düşük okunur; 100'de L=6 m'de
+  a=2 m'deki P=100 kN için M_maks 133.33 yerine 132.00 çıkıyordu (%1). Sayıyı
+  DÜŞÜRME; muhafızı `tests/test_core.py::test_tekil_yuk_tepe_degeri_izgaradan_kacmaz`.
+  Artık hata tam sıfırlanmaz (yük konumu ızgaraya denk gelmedikçe) — README
+  "Bilinen sınırlar"da yazılı.
+- **Şema figürü `matplotlib.figure.Figure` ile kurulur, `plt.subplots()` ile
+  DEĞİL** (`app.py:_sema_ciz`). pyplot figürleri global bir kayıtta tutar,
+  Streamlit ise her oturumu ayrı iş parçacığında çalıştırır; global kayıt çok
+  kullanıcılı sunucuda yarışa açıktır. `Figure` doğrudan kurulunca `plt.close()`
+  de gerekmez. Testlerde `plt.subplots()` sorun değil (tek iş parçacığı).
 - **PyCBA'nın M/V dizilerinde eleman uçları eksene KAPANIR:** her elemanın ilk ve
   son istasyonu tekrarlanır ve oraya 0 yazılır, yani ara mesnette M dizisinde iki
   sıfır bulunur. Artefakt gibi görünür ama bilinçli çizim geleneğidir — PyCBA

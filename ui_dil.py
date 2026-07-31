@@ -216,6 +216,15 @@ _TR = {
     "tepki.dusey": "Düşey tepki [kN]",
     "tepki.yatay": "Yatay tepki [kN]",
     "tepki.moment": "Moment tepkisi [kNm]",
+    "tepki.isaret_baslik": "İşaret kabulü",
+    "tepki.isaret": (
+        "İşaret kabulü: düşey tepki **yukarı** pozitif, yatay tepki **sağa** "
+        "(+x) pozitif, moment tepkisi **saat yönünün tersine** pozitif. "
+        "Moment tepkisi kirişe mesnedin UYGULADIĞI momenttir; bu yüzden "
+        "aynalanmış iki konsolda aynı büyüklük ters işaretle görünür "
+        "(soldaki ankastrede +, sağdakinde −). Kesitteki iç moment ise "
+        "diyagramdan okunur ve ikisinin işareti çakışmak zorunda değildir."
+    ),
 }
 
 _EN = {
@@ -392,6 +401,16 @@ _EN = {
     "tepki.dusey": "Vertical reaction [kN]",
     "tepki.yatay": "Horizontal reaction [kN]",
     "tepki.moment": "Moment reaction [kNm]",
+    "tepki.isaret_baslik": "Sign convention",
+    "tepki.isaret": (
+        "Sign convention: vertical reactions are positive **upwards**, "
+        "horizontal reactions positive **to the right** (+x), moment "
+        "reactions positive **counter-clockwise**. The moment reaction is the "
+        "moment the support APPLIES to the beam, so two mirrored cantilevers "
+        "show the same magnitude with opposite signs (+ at a left fixed end, "
+        "− at a right one). The internal moment is read off the diagram and "
+        "need not share that sign."
+    ),
 }
 
 METINLER = {"tr": _TR, "en": _EN}

@@ -31,6 +31,11 @@ secrets.toml
 # ---- Streamlit ----
 .streamlit/secrets.toml
 
+# ---- Örnek betiklerin ürettiği çıktılar ----
+# ornek2_diyagram.py bir PNG üretir; izlenen bir örneği çalıştırmak çalışma
+# ağacını kirletmesin. (docs/ altındaki ekran görüntüleri İZLENİR, bkz. aşağıda.)
+cikti/
+
 # ---- IDE / editör ----
 .vscode/
 .idea/

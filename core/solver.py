@@ -17,6 +17,18 @@ class SolverError(Exception):
     """Kullanıcıya gösterilebilir, anlaşılır çözüm hatası."""
 
 
+# Açıklık başına diyagram istasyonu sayısı (`analyze(npts=...)`).
+# PyCBA varsayılanı 100'dür ve ızgara EŞİT ARALIKLIDIR: yük süreksizliklerine
+# (tekil yük, moment, kısmi yük uçları) istasyon EKLENMEZ (`results.py`:
+# `xr = dx * np.arange(0, npts + 1)`). Tepe değer iki istasyonun arasına
+# düşerse ekstrem olduğundan DÜŞÜK okunur — L=6 m'de a=2 m'deki P=100 kN için
+# M_maks 133.33 yerine 132.00 çıkıyordu (%1). Hata ızgara aralığıyla orantılı
+# olduğundan 100 -> 1000 onu %0.1'e indirir; ölçülen maliyet 5 açıklık + 6 yükte
+# 0.9 ms -> 1.4 ms, yani pratikte bedava. Tam sıfırlanmaz: yük konumu ızgaraya
+# denk gelmedikçe artık hata kalır (bkz. README "Bilinen sınırlar").
+ISTASYON_SAYISI = 1000
+
+
 def build_beam(model: BeamModel):
     """Analiz çalıştırmadan, şematik çizim için `pycba.Beam` nesnesi kur.
 
@@ -144,7 +156,7 @@ def solve(model: BeamModel, dil: str = None) -> dict:
         # alt sınıfıdır, aşağıdaki dal onu zaten tutar.
         if not ba.is_stable():
             raise SolverError(mesaj("tekil_matris", dil))
-        ba.analyze()
+        ba.analyze(npts=ISTASYON_SAYISI)
     except ValueError as e:
         raise SolverError(mesaj("cozulemedi", dil, hata=e)) from e
 

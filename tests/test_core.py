@@ -704,3 +704,38 @@ def test_konum_hatasi_mekanizma_diye_bildirilmez():
         solve(m, "en")
     assert "Hinge position" in str(e.value)
     assert "mechanism" not in str(e.value)
+
+
+@pytest.mark.parametrize("a, beklenen", [
+    (3.0, 150.0),        # orta: Pab/L = 100·3·3/6
+    (2.0, 400 / 3),      # ızgaraya denk GELMEYEN konum: 133.333…
+    (1.5, 112.5),
+])
+def test_tekil_yuk_tepe_degeri_izgaradan_kacmaz(a, beklenen):
+    """Ekstremler, diyagram ızgarası tepe noktasını ıskalayacak kadar seyrek
+    olmamalı.
+
+    M_maks = Pab/L kapalı formülü. PyCBA'nın istasyon ızgarası EŞİT ARALIKLIDIR
+    ve yük süreksizliklerine istasyon eklemez; varsayılan npts=100 ile a=2 m
+    konumundaki tepe ıskalanıyor ve kart 133.33 yerine 132.00 (%1 düşük)
+    gösteriyordu. `solver.ISTASYON_SAYISI` bunu %0.1'in altına indirir. Tolerans
+    ızgara aralığına göre seçildi: %0.5 geçerse istasyon sayısı düşürülmüş
+    demektir.
+    """
+    m = BeamModel(spans=[6.0], EI=[30_000.0], supports=["pin", "roller"],
+                  loads=[Load(1, "point", [100.0, a])])
+    assert solve(m)["Mmax"] == pytest.approx(beklenen, rel=5e-3)
+
+
+def test_moment_yuku_sicramasi_tam_okunur():
+    """Açıklık ortasındaki M₀ momenti, diyagramda M₀ kadar sıçrama yapar.
+
+    Tekil yükle aynı ızgara sorunu: süreksizliğin iki yanındaki ±M₀/2 tepe
+    değerleri istasyonlara denk gelmezse sıçrama düşük okunur (npts=100'de 39.20
+    / 40.00, %2).
+    """
+    M0 = 40.0
+    m = BeamModel(spans=[6.0], EI=[30_000.0], supports=["pin", "roller"],
+                  loads=[Load(1, "moment", [M0, 3.0])])
+    r = solve(m)
+    assert r["Mmax"] - r["Mmin"] == pytest.approx(M0, rel=5e-3)

@@ -40,6 +40,8 @@ kabulü kullanılacak, sonuç nasıl görünecek — kod o tarife göre adım ad
 
 ![Yay mesnetli kiriş şeması](docs/sema-yay.png)
 
+![Gece modu](docs/ekran-gece.png)
+
 ## Yerelde çalıştırma
 
 ```bash
@@ -67,9 +69,12 @@ testin karşılığı elle çözülebilen bir problem. Referans vaka iki eşit a
 20 kN/m yayılı yük: M_B = −90 kNm, tepkiler 45/150/45 kN — el hesabıyla aynı.
 
 ```bash
-.venv\Scripts\python -m pytest -q                 # 78 test
+.venv\Scripts\python -m pytest -q                 # çekirdek + dil + arayüz testleri
 .venv\Scripts\python ornek1_surekli_kiris.py      # referans problem, elle doğrulanmış
 ```
+
+Testler her itmede GitHub Actions'ta 3.13 ve 3.14 ile çalışıyor
+(`.github/workflows/testler.yml`).
 
 Yine de şunu açık yazayım: bu bir kontrol ve öğrenme aracı, tasarım yazılımı
 değil. Bir projeye koymadan önce sonucu kendi hesabınla karşılaştır.
@@ -87,6 +92,11 @@ Bunlar eksik değil, kararlar.
 - Yay mesnet yalnız düşey. PyCBA dönme yayını da destekliyor, arayüz sormuyor.
 - Kesit tahkiki, donatı hesabı, sehim sınırı kontrolü yok. Çıktı kesit tesiri;
   onunla ne yapacağına sen karar veriyorsun.
+- Diyagramlar açıklık başına 1000 eşit aralıklı istasyonda hesaplanıyor ve
+  ızgara yük konumlarına göre kaydırılmıyor. Tekil yükün ya da momentin tam
+  altındaki tepe değer bir istasyona denk gelmezse ekstrem binde bir mertebesinde
+  düşük okunabilir; kartlardaki değer ve konumu bu ızgaradan gelir. El hesabıyla
+  son hanesine kadar aynı çıkmazsa sebebi bu olabilir.
 
 ## Mimari
 
@@ -114,9 +124,10 @@ Gerber hinges (at a support or inside a span), support settlement, elastic
 spring supports, axial loads and CSV export. The interface is available in
 Turkish and English.
 
-The analysis code in `core/` has no Streamlit dependency and is covered by 78
-tests, each verified against a hand or closed-form solution rather than frozen
-PyCBA output. Treat it as a study and checking tool, not design software.
+The analysis code in `core/` has no Streamlit dependency and is covered by tests
+(run on every push via GitHub Actions), each verified against a hand or
+closed-form solution rather than frozen PyCBA output. Treat it as a study and
+checking tool, not design software.
 
 To be open about it: I'm a civil engineering student, not a programmer, and the
 interface code was written with AI assistance. I decided as an engineer what the

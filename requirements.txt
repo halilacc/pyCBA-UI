@@ -1,5 +1,10 @@
 pycba==1.0.1
-streamlit>=1.59
+# Streamlit ARA SÜRÜME kadar sabitlenir (~= 1.59.x): ui_tema.py'nin gece modu
+# CSS'i Streamlit'in iç DOM yapısına (data-testid, data-baseweb, react-aria
+# ile çizilen sanal listeler) yapışıktır. Cloud her yeniden kurulumda
+# requirements.txt'i taze çözdüğü için sabitlenmemiş bir ara sürüm gece modunu
+# sessizce beyazlatabilir. Yükseltme ELDE denenip yapılır (bkz. CLAUDE.md).
+streamlit~=1.59.2
 plotly>=6.9
 matplotlib>=3.8
 numpy>=1.26

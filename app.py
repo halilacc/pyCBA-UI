@@ -5,10 +5,10 @@ Yalnızca sunum katmanı: model kurulumu ve çözüm `core/` paketindedir.
 Çalıştırma: .venv\\Scripts\\streamlit run app.py
 """
 
-import matplotlib.pyplot as plt
 import numpy as np
 import plotly.graph_objects as go
 import streamlit as st
+from matplotlib.figure import Figure
 from plotly.subplots import make_subplots
 
 from core import (
@@ -454,10 +454,16 @@ def _sema_ciz(reactions=None):
     # etkilenmesin diye figürü kendisi yeniden boyutlandırır (bkz.
     # ui_cizim._sabitle_olcek). Önceden burada tepkili/tepkisiz diye 3.4/2.6
     # veriliyordu ve iki şema arasında ölçek gözle görülür şekilde sıçrıyordu.
-    fig_schema, ax_schema = plt.subplots(figsize=(10, 3.4))
+    # `plt.subplots()` DEĞİL: pyplot figürleri GLOBAL bir kayıtta tutar,
+    # Streamlit ise her oturumu ayrı iş parçacığında çalıştırır — iki kullanıcı
+    # aynı anda çizerken o kayıt yarışa açıktır (Streamlit'in kendi belgeleri
+    # pyplot kullanılacaksa kilit önerir). `Figure` doğrudan kurulunca global
+    # durum hiç doğmaz; `plt.close()` ihtiyacı da ortadan kalkar, figür
+    # referansı bitince toplanır.
+    fig_schema = Figure(figsize=(10, 3.4))
+    ax_schema = fig_schema.subplots()
     ciz_sema(ax_schema, model, reactions, dil)
     st.pyplot(fig_schema, width="stretch")
-    plt.close(fig_schema)
 
 
 # Yük ve çökme yoksa çözüm (dolayısıyla tepki) yok: yalnızca şemayı çiz ve dur.
@@ -735,3 +741,9 @@ for r in result["reactions"]:
 # st.dataframe canvas tabanlı olduğu için gece modunda renklenmez; temalanabilir
 # HTML tablo kullanılır (bkz. ui_tema.tepki_tablosu).
 tepki_tablosu(rows)
+# İşaret kabulü tablonun ALTINDA: sütun başlığına sığmaz, ama tablosuz da
+# anlamsızdır. Özellikle moment tepkisi kafa karıştırıyor — global (saat yönü
+# tersi pozitif) kabul yüzünden aynalanmış iki ankastre ters işaret verir; tabloda
+# bunu açıklayan hiçbir şey yoktu. Kapalı expander akışı bölmez.
+with st.expander(t("tepki.isaret_baslik")):
+    st.markdown(t("tepki.isaret"))
