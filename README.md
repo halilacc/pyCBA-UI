@@ -16,6 +16,12 @@ listelerini elle kurup analiz nesnesini çağırıyorsun. Python bilmeyen biri i
 bu, çözmek istediği problemden daha büyük bir engel. Arayüz o engeli kaldırıyor;
 hesaba karışmıyor.
 
+Bunu açıkça yazayım: ben inşaat mühendisliği öğrencisiyim, yazılımcı değilim.
+Arayüzün kodu yapay zekâ yardımıyla yazıldı. Neyin nasıl çalışması gerektiğine
+mühendis olarak ben karar verdim — hangi girdiler sorulacak, hangi işaret
+kabulü kullanılacak, sonuç nasıl görünecek — kod o tarife göre adım adım
+çıktı. Hesabın kendisi bana ait değil zaten; onu PyCBA yapıyor.
+
 ## Neler var
 
 - Çok açıklıklı sürekli kiriş, açıklık başına ayrı uzunluk ve EI.
@@ -54,6 +60,11 @@ elle ya da kapalı formülle doğrulanabiliyor: iki eşit açıklıkta tam yayı
 için M_B = −wL²/8, konsol ucundaki yayda δ = (wL⁴/8EI)/(1 + kL³/3EI), Gerber
 düzenlerinde izostatik denge gibi. PyCBA'nın çıktısını "olduğu gibi" dondurup
 test diye saymadım. Kütüphane bir gün değişirse bunu fark etmek istiyorum.
+
+Kodu yapay zekâ yardımıyla yazdırmış olmam bu bölümü daha da önemli kılıyor:
+koda bakıp doğruluğuna karar veremem, sonuca bakıp karar veririm. O yüzden her
+testin karşılığı elle çözülebilen bir problem. Referans vaka iki eşit açıklıkta
+20 kN/m yayılı yük: M_B = −90 kNm, tepkiler 45/150/45 kN — el hesabıyla aynı.
 
 ```bash
 .venv\Scripts\python -m pytest -q                 # 78 test
@@ -107,3 +118,8 @@ Turkish and English.
 The analysis code in `core/` has no Streamlit dependency and is covered by 78
 tests, each verified against a hand or closed-form solution rather than frozen
 PyCBA output. Treat it as a study and checking tool, not design software.
+
+To be open about it: I'm a civil engineering student, not a programmer, and the
+interface code was written with AI assistance. I decided as an engineer what the
+tool had to do and checked the results by hand; the analysis itself is PyCBA's.
+That is also why every test corresponds to a problem solvable on paper.
