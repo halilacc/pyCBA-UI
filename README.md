@@ -7,7 +7,7 @@ depo onun üstüne oturan sunum katmanı.
 
 **Canlı sürüm:** https://pycba-ui-yap1.streamlit.app
 *(Streamlit Community Cloud bir hafta ziyaret edilmeyen uygulamayı uyutuyor. Uyku
-ekranı çıkarsa uyandırma düğmesine bas — açılması yarım dakika kadar sürer.)*
+ekranı çıkarsa uyandırma düğmesine bas — açılması ~ 1 dakika kadar sürer.)*
 
 
 ![Uygulamanın tanıtımı: şema, diyagramlar, tepki tablosu ve gece modu](docs/tanitim.gif)
