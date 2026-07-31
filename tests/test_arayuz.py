@@ -237,7 +237,7 @@ def test_sema_cokme_etiketleri_cakismaz(n_span):
     daralır: üç açıklıkta etiketler karşı karşıya geliyor, altıda düğüm
     harflerinin (A, B, …) üstüne biniyordu. `ui_cizim.ciz_cokmeler` bunu iki
     satıra dağıtarak çözer; burada gerçekten çizdirip kutular ölçülür — göz
-    kararı değil (bkz. CLAUDE.md "gece modu" bölümündeki aynı ilke).
+    kararı değil.
 
     En sıkışık durum (10 açıklık) BİLEREK dışarıda: orada PyCBA'nın kendi tepki
     etiketleri de çakışıyor, şema zaten okunmuyor.

@@ -39,7 +39,7 @@ def _N(sonuc, x):
 
 # --------------------------------------------------------- sürekli kiriş (referans)
 def test_referans_surekli_kiris():
-    """CLAUDE.md referans problemi: 2×6 m, her açıklıkta 20 kN/m UDL.
+    """Referans problem: 2×6 m, her açıklıkta 20 kN/m UDL.
 
     Simetrik iki eşit açıklık, tam UDL: M_B = -w·L²/8 = -90 kNm,
     tepkiler 3wL/8 = 45 · 10wL/8 = 150 · 45 kN.

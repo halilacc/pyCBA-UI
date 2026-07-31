@@ -1,5 +1,5 @@
 # ---- Sanal ortam ----
-# PyCBA fork edilmez, .venv içinden bağımlılık olarak import edilir (bkz. CLAUDE.md).
+# PyCBA fork edilmez, .venv içinden bağımlılık olarak import edilir.
 # 7000+ dosya; asla depoya girmez. Kurulum: pip install -r requirements.txt
 .venv/
 venv/
@@ -42,8 +42,10 @@ secrets.toml
 Thumbs.db
 desktop.ini
 
-# ---- Claude Code ----
-# Agent tanımları (.claude/agents/) izlenir; yalnızca kişisel yerel ayarlar yoksayılır.
-.claude/settings.local.json
-# Yerel/üçüncü-parti skill konfigleri uygulamayla ilgisiz; depoya (ve deploy'a) girmez.
-.claude/skills/
+# ---- Geliştirme ortamı ----
+# Bunlar yerelde durur ama depoya girmez: uygulamayı çalıştırmak için gerekli
+# değiller, yalnızca geliştirme sırasında kullanılan not/yapılandırma dosyaları.
+.claude/
+CLAUDE.md
+pyCBA-UI-Planı.md
+ornek3_senin_kirisin.py

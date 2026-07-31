@@ -80,8 +80,7 @@ Bunlar eksik değil, kararlar.
 
 - Yük düzenlemesi ve zarf diyagramı yok. Yazmıştım, sonra kaldırdım. Zarfın
   eksene kenetlenmesi (PyCBA'nın çizim geleneği) bandı okunmaz hale getiriyordu,
-  yarım bir özellik yayınlamaktansa çıkarmayı seçtim. Ölçümler ve gerekçe
-  `pyCBA-UI-Planı.md` dosyasının sonunda duruyor.
+  yarım bir özellik yayınlamaktansa çıkarmayı seçtim.
 - Eksenel çözücü, kesit alanını (EA) bütün açıklıklarda eşit varsayıyor. Tek
   yatay tutulu mesnet varken sonuç kesin; birden çoksa yatay tepkilerin
   paylaşımı yaklaşık kalıyor. Uygulama bu durumda uyarı gösteriyor.
