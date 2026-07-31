@@ -1,0 +1,78 @@
+name: hugging face aynasi
+
+# Streamlit Community Cloud, bir hafta ziyaret edilmeyen uygulamayı uyutuyor ve
+# ziyaretçiye "uyandır" düğmesi gösteriyor. Hugging Face Spaces de uyutuyor ama
+# ziyaret gelince KENDİLİĞİNDEN uyanıyor — tıklama adımı yok. Bu iş akışı depoyu
+# her push'ta Space'e aynalar, böylece iki adres de aynı kodu çalıştırır.
+#
+# ─── Kurulum (bir kez, elle) ────────────────────────────────────────────────
+#  1. huggingface.co → New Space
+#       Owner: halilacc · Space name: pyCBA-UI · SDK: Streamlit · Public
+#     (Space'in içine dosya yüklemene gerek yok; ilk push burayı dolduracak.)
+#  2. huggingface.co/settings/tokens → New token
+#       Type: Write · adı fark etmez
+#  3. GitHub → depo → Settings → Secrets and variables → Actions → New secret
+#       Name: HF_TOKEN · Value: (2. adımdaki token)
+#  4. Aşağıdaki HF_KULLANICI / HF_SPACE değerleri seninkiyle uyuşuyorsa dokunma.
+#  5. İlk push geçtikten ve Space GERÇEKTEN açıldıktan SONRA README'ye şu satırı
+#     ekle (önce değil — çalışmayan adres vermek en baştaki hatanın aynısıdır):
+#       **Ayna:** https://huggingface.co/spaces/halilacc/pyCBA-UI — aynı uygulama,
+#       uyanması için tıklamak gerekmiyor.
+#
+# Secret tanımlı değilken iş akışı KIRMIZI VERMEZ, atlanır — kurulumu yapana
+# kadar her push'ta hata bildirimi almayasın diye.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  HF_KULLANICI: halilacc
+  HF_SPACE: pyCBA-UI
+
+jobs:
+  ayna:
+    runs-on: ubuntu-latest
+    steps:
+      - name: HF_TOKEN tanımlı mı
+        id: kontrol
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          if [ -z "$HF_TOKEN" ]; then
+            echo "HF_TOKEN yok — ayna atlanıyor (kurulum için workflow başlığına bak)."
+            echo "var=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "var=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v5
+        if: steps.kontrol.outputs.var == 'true'
+        with:
+          # Space'e tam geçmişle itilir; sığ klon force-push'ta sorun çıkarabiliyor.
+          fetch-depth: 0
+
+      - name: Space başlığını README'ye ekle
+        if: steps.kontrol.outputs.var == 'true'
+        # Space kimlik kartını README'nin BAŞINDAN okur. Başlık ayrı dosyada
+        # tutulur (docs/hf-basligi.md) çünkü GitHub ön maddeyi tablo diye çizer;
+        # birleştirme yalnız Space'e giden kopyada yapılır, depodaki README
+        # olduğu gibi kalır.
+        run: |
+          cat docs/hf-basligi.md README.md > README.birlesik.md
+          mv README.birlesik.md README.md
+
+      - name: Space'e it
+        if: steps.kontrol.outputs.var == 'true'
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add README.md
+          git commit -m "Space başlığı eklendi (GitHub aynası)"
+          # --force: Space'in tek gerçek kaynağı bu depodur, oradaki geçmiş
+          # yalnızca aynalamadan ibarettir.
+          git push --force \
+            "https://${HF_KULLANICI}:${HF_TOKEN}@huggingface.co/spaces/${HF_KULLANICI}/${HF_SPACE}" \
+            HEAD:main

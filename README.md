@@ -6,8 +6,11 @@ anında çıkıyor. Hesabı [PyCBA](https://github.com/ccaprani/pycba) yapıyor,
 depo onun üstüne oturan sunum katmanı.
 
 **Canlı sürüm:** https://pycba-ui-yap1.streamlit.app
+*(Streamlit Community Cloud bir hafta ziyaret edilmeyen uygulamayı uyutuyor. Uyku
+ekranı çıkarsa uyandırma düğmesine bas — açılması yarım dakika kadar sürer.)*
 
-![Uygulamanın ekran görüntüsü](docs/ekran.png)
+
+![Uygulamanın tanıtımı: şema, diyagramlar, tepki tablosu ve gece modu](docs/tanitim.gif)
 
 ## Neden yazdım
 
@@ -39,8 +42,6 @@ kabulü kullanılacak, sonuç nasıl görünecek — kod o tarife göre adım ad
 - Türkçe/İngilizce arayüz ve gece modu.
 
 ![Yay mesnetli kiriş şeması](docs/sema-yay.png)
-
-![Gece modu](docs/ekran-gece.png)
 
 ## Yerelde çalıştırma
 
@@ -116,6 +117,8 @@ kaynağını kullanıcılara açmak zorundasın, uygulamanın içindeki kaynak k
 bağlantısı bunun için var.
 
 ## In English
+
+![Screenshot](docs/ekran.png)
 
 A browser interface for continuous beam analysis, built on top of PyCBA. You
 enter spans, supports and loads in a form and get support reactions, shear and

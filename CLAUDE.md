@@ -271,6 +271,27 @@ Yaşanmış tuzaklar — tahmin etme, DOM'dan `getComputedStyle` ile ölç:
 - `ui_tema.py` içe aktarılmış modüldür: değiştirince Streamlit'i **yeniden başlat**,
   yalnız sayfayı yenilemek yetmez.
 
+## Dağıtım ve tanıtım görseli
+
+Streamlit Community Cloud, **bir hafta ziyaret edilmeyen** uygulamayı uyutur;
+ziyaretçi "uyandır" düğmesi görür ve ~30-60 sn bekler. Soğuk başlangıcın
+sebebi kod DEĞİL (bağımlılıkların toplam import maliyeti ölçüldü: 1.56 s);
+konteyner ayağa kalkması. `app.py`'de optimize edecek bir şey arama.
+Hugging Face Spaces aynası (`.github/workflows/hf-aynasi.yml`) bu yüzden var:
+o da uyutur ama ziyaret gelince kendiliğinden uyanır, tıklama adımı yoktur.
+Ayna `docs/hf-basligi.md`'yi README'nin başına ekleyip Space'e iter;
+`sdk_version` ile `requirements.txt`'teki streamlit sabiti AYNI tutulmalı.
+
+`docs/tanitim.gif` headless Chrome + CDP ile çekildi (Claude in Chrome eklentisi
+bağlanmıyordu). İki tuzak ölçülerek bulundu:
+- **Gece modu anahtarına `Input.dispatchMouseEvent` TUTMUYOR.** Gizli input'a
+  JS `.click()` gönder: `[data-testid="stSidebar"] [data-testid="stCheckbox"] input`.
+  Doğrulaması `stApp`in zemin rengidir: `rgb(251,251,250)` -> `rgb(21,22,27)`.
+- Kaydırma `window.scrollTo` ile değil `Input.dispatchMouseEvent type=mouseWheel`
+  ile yapılır (Streamlit'in kendi kaydırma kabı var).
+GIF'i güncellerken uygulamayı ayrı bir portta başlat ve PID'yi öldürmeyi unutma
+(bkz. yukarıdaki "Streamlit yeniden başlatma" notu).
+
 ## 2. Aşama (henüz yok)
 
 Kiriş fotoğrafından model çıkarma (LLM ile) planlanıyor; formu ön-dolduracak, `core/`
