@@ -432,7 +432,11 @@ def test_cokme_izostatikte_kesit_tesiri_uretmez():
     assert np.allclose(r["V"], 0.0, atol=1e-9)
     assert r["D"][0] == pytest.approx(0.0, abs=1e-12)
     assert r["D"][-1] == pytest.approx(-0.01, rel=1e-9)
-    assert not r["reactions"][0]["V"]  # tepki de sıfır (yalnız rijit hareket)
+    # Tepki de sıfır (yalnız rijit hareket). `assert not V` YAZMA: kayan noktada
+    # "tam 0.0" platforma bağlıdır — bu satır Windows/3.14'te 0.0 okuyup geçerken
+    # CI'da Linux/3.14'te 3.55e-15 okuyup kırıldı (aynı koşucuda 3.13 geçmişti).
+    # Fiziksel iddia "sıfıra eşit" değil, "sıfır mertebesinde"dir; tolerans şart.
+    assert r["reactions"][0]["V"] == pytest.approx(0.0, abs=1e-9)
 
 
 def test_cokme_hiperstatik_kuvvet_yontemi():
