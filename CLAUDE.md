@@ -277,10 +277,20 @@ Streamlit Community Cloud, **bir hafta ziyaret edilmeyen** uygulamayı uyutur;
 ziyaretçi "uyandır" düğmesi görür ve ~30-60 sn bekler. Soğuk başlangıcın
 sebebi kod DEĞİL (bağımlılıkların toplam import maliyeti ölçüldü: 1.56 s);
 konteyner ayağa kalkması. `app.py`'de optimize edecek bir şey arama.
-Hugging Face Spaces aynası (`.github/workflows/hf-aynasi.yml`) bu yüzden var:
-o da uyutur ama ziyaret gelince kendiliğinden uyanır, tıklama adımı yoktur.
-Ayna `docs/hf-basligi.md`'yi README'nin başına ekleyip Space'e iter;
-`sdk_version` ile `requirements.txt`'teki streamlit sabiti AYNI tutulmalı.
+**Uykuyu barındırıcı değiştirerek çözme yolu KAPANDI (2026-08-03) — yeniden
+açma.** Hugging Face Spaces aynası yazılmıştı (`hf-aynasi.yml` +
+`docs/hf-basligi.md`, ikisi de silindi); hiç kurulmadan HF politikası değişti:
+Streamlit SDK'sı kullanımdan kaldırıldı (Docker SDK + şablon gerekiyor) ve
+compute çalıştıran Space'ler ücretli plana taşındı, ücretsizde yalnız Python
+çalıştırmayan Static kaldı. Render ücretsiz katmanı DAHA KÖTÜ bir takas:
+**15 dakika** trafiksizlikte uyur (Streamlit Cloud 7 gün), üstelik 512 MB /
+0.1 CPU. Yani ziyaretçi Streamlit Cloud'da haftanın çoğunda anında açılışa
+kavuşurken Render'da neredeyse her seferinde bekler. Cloud Run teknik olarak
+daha iyi ama Dockerfile + kart ister.
+
+Karar: **barındırıcı değişmiyor, uyandırmayı ziyaretçi yapıyor.** README bunu
+ziyaretçiye açıkça söylüyor. Uygulamayı uyanık tutan zamanlanmış iş de önerildi
+ve İSTENMEDİ — bir daha teklif etme.
 
 `docs/tanitim.gif` headless Chrome + CDP ile çekildi (Claude in Chrome eklentisi
 bağlanmıyordu). İki tuzak ölçülerek bulundu:
