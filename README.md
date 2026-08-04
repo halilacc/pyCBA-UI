@@ -1,6 +1,10 @@
 # pyCBA-UI
 
-[![testler](https://github.com/halilacc/pyCBA-UI/actions/workflows/testler.yml/badge.svg)](https://github.com/halilacc/pyCBA-UI/actions/workflows/testler.yml)
+[![app](https://img.shields.io/badge/app-live-FF4B4B?logo=streamlit&logoColor=white)](https://pycba-ui-yap1.streamlit.app)
+[![python](https://img.shields.io/badge/python-3.13%20%7C%203.14-3776AB?logo=python&logoColor=white)](https://www.python.org)
+[![Tests](https://img.shields.io/github/actions/workflow/status/halilacc/pyCBA-UI/testler.yml?branch=main&label=Tests&logo=github)](https://github.com/halilacc/pyCBA-UI/actions/workflows/testler.yml)
+[![docs](https://img.shields.io/badge/docs-pycba-4338CA)](https://ccaprani.github.io/pycba)
+[![License](https://img.shields.io/badge/License-AGPL%20v3-blue)](LICENSE)
 
 Sürekli kirişleri tarayıcıda çözen bir arayüz. Açıklıkları, mesnetleri ve yükleri
 forma giriyorsun; mesnet tepkileri, kesme ve moment diyagramları ve sehim eğrisi
