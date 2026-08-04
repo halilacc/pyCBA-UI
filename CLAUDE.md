@@ -24,6 +24,9 @@ Türkçe+İngilizce kataloglardadır (bkz. "Dil"). Detaylı tasarım kararları
 
 # Çekirdeği elle gözlemle (referans problemin ayrıntılı çıktısı)
 .venv\Scripts\python.exe ornek1_surekli_kiris.py
+
+# Ham PyCBA'nın kendi çizimi (core/'dan GEÇMEZ; cikti/sonuc_diyagram.png yazar)
+.venv\Scripts\python.exe ornek2_diyagram.py
 ```
 
 Sistem Python'u değil, her zaman `.venv\Scripts\python.exe` kullanılır.

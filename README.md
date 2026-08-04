@@ -1,5 +1,7 @@
 # pyCBA-UI
 
+[![testler](https://github.com/halilacc/pyCBA-UI/actions/workflows/testler.yml/badge.svg)](https://github.com/halilacc/pyCBA-UI/actions/workflows/testler.yml)
+
 Sürekli kirişleri tarayıcıda çözen bir arayüz. Açıklıkları, mesnetleri ve yükleri
 forma giriyorsun; mesnet tepkileri, kesme ve moment diyagramları ve sehim eğrisi
 anında çıkıyor. Hesabı [PyCBA](https://github.com/ccaprani/pycba) yapıyor, bu
@@ -36,6 +38,8 @@ kabulü kullanılacak, sonuç nasıl görünecek — kod o tarife göre adım ad
   da koyabiliyorsun; açıklık orada otomatik bölünüyor, yük numaralandırman
   değişmiyor.
 - Mesnet çökmesi, milimetre cinsinden.
+- Eklediğin yükler listeleniyor; satırı açıp açıklığını ve değerlerini
+  değiştirebiliyorsun, yanlış girilen yükü silip yeniden eklemek gerekmiyor.
 - Kiriş şeması: mesnet glifleri, yük okları, tepki okları, düğüm harfleri.
 - Diyagramlar Plotly ile çiziliyor, ekstremler konumlarıyla işaretleniyor,
   veriler CSV olarak iniyor.
@@ -74,8 +78,8 @@ testin karşılığı elle çözülebilen bir problem. Referans vaka iki eşit a
 .venv\Scripts\python ornek1_surekli_kiris.py      # referans problem, elle doğrulanmış
 ```
 
-Testler her itmede GitHub Actions'ta 3.13 ve 3.14 ile çalışıyor
-(`.github/workflows/testler.yml`).
+Testler `main`'e her itmede ve her pull request'te GitHub Actions'ta 3.13 ve
+3.14 ile çalışıyor (`.github/workflows/testler.yml`).
 
 Yine de şunu açık yazayım: bu bir kontrol ve öğrenme aracı, tasarım yazılımı
 değil. Bir projeye koymadan önce sonucu kendi hesabınla karşılaştır.
@@ -84,7 +88,9 @@ değil. Bir projeye koymadan önce sonucu kendi hesabınla karşılaştır.
 
 Bunlar eksik değil, kararlar.
 
-- Yük düzenlemesi ve zarf diyagramı yok. Yazmıştım, sonra kaldırdım. Zarfın
+- Hareketli yük düzenlemesi (şaşırtmalı yükleme) ve ondan çıkan zarf diyagramı
+  yok — yani yüklediğin durumu çözüyor, en elverişsiz yükleme durumunu kendisi
+  aramıyor. Zarfı yazmıştım, sonra kaldırdım. Zarfın
   eksene kenetlenmesi (PyCBA'nın çizim geleneği) bandı okunmaz hale getiriyordu,
   yarım bir özellik yayınlamaktansa çıkarmayı seçtim.
 - Eksenel çözücü, kesit alanını (EA) bütün açıklıklarda eşit varsayıyor. Tek
@@ -124,11 +130,12 @@ A browser interface for continuous beam analysis, built on top of PyCBA. You
 enter spans, supports and loads in a form and get support reactions, shear and
 bending moment diagrams and the deflected shape. It handles multi-span beams,
 Gerber hinges (at a support or inside a span), support settlement, elastic
-spring supports, axial loads and CSV export. The interface is available in
-Turkish and English.
+spring supports, axial loads, an editable load list and CSV export. The
+interface is available in Turkish and English.
 
 The analysis code in `core/` has no Streamlit dependency and is covered by tests
-(run on every push via GitHub Actions), each verified against a hand or
+(run on every push to `main` and every pull request via GitHub Actions), each
+verified against a hand or
 closed-form solution rather than frozen PyCBA output. Treat it as a study and
 checking tool, not design software.
 

@@ -1,6 +1,7 @@
 name: testler
 
-# 78 test README'nin güven argümanının tamamı; elle çalıştırılmaya bırakılmaz.
+# Testler README'nin güven argümanının tamamı; elle çalıştırılmaya bırakılmaz.
+# (Sayıyı buraya YAZMA: test eklendikçe bayatlıyor, kimse de düzeltmiyor.)
 # Ayrıca bağımlılık sabitlerinin (özellikle streamlit~=1.59.2) gerçekten
 # kurulabildiğini ve arayüzün AppTest altında hâlâ açıldığını doğrular.
 on:
@@ -24,7 +25,12 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
           cache: pip
-          cache-dependency-path: requirements-dev.txt
+          # İkisi de listelenir: kurulan requirements-dev.txt'tir ama o
+          # requirements.txt'i içeri aldığı için tek başına requirements.txt
+          # değişince de önbellek anahtarı yenilenmeli.
+          cache-dependency-path: |
+            requirements.txt
+            requirements-dev.txt
 
       - name: Bağımlılıkları kur
         run: |
