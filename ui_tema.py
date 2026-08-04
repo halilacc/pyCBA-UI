@@ -92,7 +92,7 @@ _TEMA_CSS = """<style>
 
 /* Görüntü (display) yazı tipi */
 h1, h2, h3, [data-testid="stMetricValue"],
-.stButton button, .stDownloadButton button, [data-testid="stFormSubmitButton"] > button,
+.stButton button, .stDownloadButton button, [data-testid="stFormSubmitButton"] button,
 .pc-hero__title, .pc-hero__eyebrow {
   font-family: 'Space Grotesk', ui-sans-serif, system-ui, -apple-system, sans-serif !important;
   letter-spacing: -0.018em;
@@ -232,16 +232,19 @@ h1, h2, h3, [data-testid="stMetricValue"],
   }
 }
 
-/* --- Butonlar: press feedback + hover --- */
-.stButton button, .stDownloadButton button, [data-testid="stFormSubmitButton"] > button {
+/* --- Butonlar: press feedback + hover ---
+   Her yerde TORUN seçici (`… button`), çocuk (`> button`) DEĞİL: `help=` verilen
+   butonu Streamlit ipucu sarmalayıcısının içine koyuyor, çocuk seçici hiçbir
+   şeye uymuyor. Ayrıntı ve ölçüm için aşağıdaki gece modu kuralına bakın. */
+.stButton button, .stDownloadButton button, [data-testid="stFormSubmitButton"] button {
   border-radius: 10px; font-weight: 600;
   transition: transform 140ms var(--pc-ease), box-shadow 160ms var(--pc-ease),
               border-color 160ms var(--pc-ease), background-color 160ms var(--pc-ease);
 }
-.stButton button:hover, .stDownloadButton button:hover, [data-testid="stFormSubmitButton"] > button:hover {
+.stButton button:hover, .stDownloadButton button:hover, [data-testid="stFormSubmitButton"] button:hover {
   border-color: var(--pc-acc); box-shadow: var(--pc-sh-sm);
 }
-.stButton button:active, .stDownloadButton button:active, [data-testid="stFormSubmitButton"] > button:active {
+.stButton button:active, .stDownloadButton button:active, [data-testid="stFormSubmitButton"] button:active {
   transform: scale(0.98);
 }
 
@@ -375,7 +378,7 @@ h1, h2, h3, [data-testid="stMetricValue"],
 @media (prefers-reduced-motion: reduce) {
   [data-testid="stMainBlockContainer"], .pc-hero__line, [data-testid="stSidebar"] { animation: none !important; }
   [data-testid="stMetric"], .stButton button, .stDownloadButton button,
-  [data-testid="stFormSubmitButton"] > button, [data-testid="stExpander"] details, .pc-tablo tbody tr { transition: none !important; }
+  [data-testid="stFormSubmitButton"] button, [data-testid="stExpander"] details, .pc-tablo tbody tr { transition: none !important; }
   [data-testid="stMetric"]:hover { transform: none !important; }
   /* Parlama tamamen kapatılır (kayan gradyan hareket algısı yaratır). */
   [data-testid="stMetric"]::after { display: none !important; }

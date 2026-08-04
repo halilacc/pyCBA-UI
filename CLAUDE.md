@@ -292,9 +292,8 @@ Streamlit Community Cloud, **bir gün kadar ziyaret edilmeyen** uygulamayı
 uyutur; ziyaretçi "uyandır" düğmesi görür ve ~30-60 sn bekler. (Belgelerdeki
 "bir hafta" rakamı GERÇEĞİ VERMİYOR: 2026-08-04'te bir önceki günün ziyaretine
 rağmen uygulama uykuda bulundu. Sayıyı belgeden değil gözlemden yaz.) Soğuk
-başlangıcın
-sebebi kod DEĞİL (bağımlılıkların toplam import maliyeti ölçüldü: 1.56 s);
-konteyner ayağa kalkması. `app.py`'de optimize edecek bir şey arama.
+başlangıcın sebebi kod DEĞİL (bağımlılıkların toplam import maliyeti ölçüldü:
+1.56 s); konteyner ayağa kalkması. `app.py`'de optimize edecek bir şey arama.
 **Uykuyu barındırıcı değiştirerek çözme yolu KAPANDI (2026-08-03) — yeniden
 açma.** Hugging Face Spaces aynası yazılmıştı (`hf-aynasi.yml` +
 `docs/hf-basligi.md`, ikisi de silindi); hiç kurulmadan HF politikası değişti:

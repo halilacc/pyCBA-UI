@@ -181,6 +181,11 @@ with st.sidebar:
     else:
         # Tek açıklıkta ara düğüm yoktur: seçenek listesi boş kalır ve Streamlit
         # tıklanabilir ama hiçbir şey sunmayan ölü bir kutu çizerdi. Hiç çizme.
+        # Kayıt burada da sıfırlanır (aşağıdaki satır) ve bu BİLİNÇLİDİR: kayıt
+        # "son geçerli seçim"dir, "bir zamanlar seçilmişler" değil. 4→3'te de
+        # geçersiz kalan mafsal kaydın dışında bırakılıp kullanıcıya söyleniyor;
+        # 4→1 aynı kuralın uç hali. Aksi halde tek açıklıkta çalışan kullanıcının
+        # altına, farkında olmadığı mafsallar geri dönerdi.
         hinges = []
     st.session_state.gerber_kayit = list(hinges)
     if gerber_dusen:
@@ -229,15 +234,19 @@ with st.sidebar:
         # SESSİZ OLMAMALI: aynı durumda yük listesi hata verip kullanıcıyı
         # uyarıyor, mafsal ise iz bırakmadan siliniyordu (tutarsız geri bildirim).
         # Uyarı yalnız düşüşün olduğu çalıştırmada görünür — bir sonrakinde
-        # listede zaten yoklar.
+        # listede zaten yoklar. Bu yüzden uyarı BU BLOĞUN İÇİNDE BASILAMAZ:
+        # expander varsayılan olarak kapalı, kullanıcı paneli kapattıktan sonra
+        # açıklık boyunu değiştirirse mafsal düşer, uyarı kapalı panelin içine
+        # yazılır ve hiç görülmez — düzeltilmek istenen sessizlik aynen sürerdi.
+        # (`AppTest` katlanmış expander'ı modellemediği için testler yakalamaz.)
+        # Sayı bayrağa alınır, `with` bittikten sonra Gerber uyarısıyla aynı
+        # düzeyde basılır.
         gecerli = [
             (s, a) for s, a in st.session_state.span_hinges
             if 1 <= s <= n_spans and 0 < a < float(spans[s - 1])
         ]
         dusen_ic = len(st.session_state.span_hinges) - len(gecerli)
         st.session_state.span_hinges = gecerli
-        if dusen_ic:
-            st.warning(t("mafsal.dustu", n=dusen_ic))
         for j, (s, a) in enumerate(st.session_state.span_hinges):
             lc1, lc2 = st.columns([2, 1])
             lc1.write(t("mafsal.satir", sp=s, a=a))
@@ -254,6 +263,10 @@ with st.sidebar:
                 st.session_state.span_hinges.pop(j)
                 yeniden_calistir = True
                 break
+    # Expander KAPANDIKTAN sonra, Gerber uyarısıyla (yukarıda) aynı düzeyde:
+    # kapalı panelin içine yazılan uyarı görülmez.
+    if dusen_ic:
+        st.warning(t("mafsal.dustu", n=dusen_ic))
 
     # Mesnet çökmesi: mesnetli her düğüm için tek bir alan. Yük/mafsal
     # listelerindeki gibi ekle-sil kurgusu YOK — düğüm sayısı zaten sınırlı (≤11)
@@ -589,6 +602,26 @@ def _biciml(v, olcek=1.0):
     """
     return _sayi(round(v * olcek, 2) + 0.0)
 
+
+def _etiket_sayi(v):
+    """Grafik ekstrem etiketi: büyükte binlik ayraç, küçükte anlamlı basamak.
+
+    `_sayi` sabit 2 ondalık basar. Etiketi ona bağlamak ayraç kazandırıyordu ama
+    küçük değerlerde hassasiyeti yiyordu: EI = 5·10⁷ kNm² mertebesinde maks sehim
+    etiketi "0.00 mm" çıkıyor, işaretçi sıfırdan belirgin uzakta dururken okuyan
+    "sehim yok" sanıyordu. |v| < 1 iken 4 anlamlı basamağa dönülür; ayraç zaten
+    yalnız |v| ≥ 1000'de görünür, yani iki isteğin çakıştığı aralık yoktur.
+    Kartın 2 ondalığı ayrı bir konudur (`_biciml`) — etiket ekrandaki tek yerdir
+    ki daha fazla basamak verebilsin.
+
+    Tam sıfır `_sayi`ya bırakılır: `%g` onu "0" (ve -0.0'ı "-0") diye basardı,
+    kartlardaki "0.00" ile aynı görünsün.
+    """
+    if v == 0:                       # -0.0 da buraya düşer
+        return _sayi(0.0)
+    return _sayi(v) if abs(v) >= 1 else f"{v:.4g}"
+
+
 def _kart(col, buyukluk, birim, xd, yd, olcek=1.0):
     """Kartı çiz: büyük rakam mutlak değerce yöneten ekstrem, diğeri caption'da.
 
@@ -734,7 +767,7 @@ else:
                 row=i, col=1,
             )
             fig.add_annotation(
-                x=x_e, y=deger, text=f"{_sayi(deger)} {birim} · {x_e:.2f} m",
+                x=x_e, y=deger, text=f"{_etiket_sayi(deger)} {birim} · {x_e:.2f} m",
                 showarrow=False,
                 # yshift EKRAN pikselidir: moment panelinde y ekseni ters olduğu
                 # için veri uzayındaki "üst" ekranda alta düşer, yön de terslenir.
@@ -803,12 +836,16 @@ for r in result["reactions"]:
     row = {
         t("tepki.dugum"): r["node"],
         t("tepki.konum"): round(r["x"], 3),
-        t("tepki.dusey"): "—" if r["V"] is None else f"{r['V']:.3f}",
+        # Kartlar ve grafik etiketleri binlik ayraçlı; tablo ham `:.3f` kalınca
+        # aynı sayfada "2 250.00 kNm" kartıyla "2250.000 kN" satırı yan yana
+        # görünüyordu. Ondalık 3 kalır (tabloda tam değer beklenir), ayraç eklenir.
+        # CSV ayraçsız kalmalı — o makine okunur, `_diyagram_csv`e dokunma.
+        t("tepki.dusey"): "—" if r["V"] is None else _sayi(r["V"], 3),
     }
     if has_axial:
-        row[t("tepki.yatay")] = "—" if r["H"] is None else f"{r['H']:.3f}"
+        row[t("tepki.yatay")] = "—" if r["H"] is None else _sayi(r["H"], 3)
     if has_fixed:
-        row[t("tepki.moment")] = "—" if r["M"] is None else f"{r['M']:.3f}"
+        row[t("tepki.moment")] = "—" if r["M"] is None else _sayi(r["M"], 3)
     rows.append(row)
 # st.dataframe canvas tabanlı olduğu için gece modunda renklenmez; temalanabilir
 # HTML tablo kullanılır (bkz. ui_tema.tepki_tablosu).

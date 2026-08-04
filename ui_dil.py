@@ -20,6 +20,12 @@ Eksik anahtar/dil sessizce Türkçeye düşer; yarım çeviri arayüzü kırmaz.
 DILLER = {"tr": "Türkçe", "en": "English"}
 VARSAYILAN_DIL = "tr"
 
+# Silme ikonu tek kaynaktan: hem butonun kendi etiketinde (`liste.sil`) hem de
+# o butonu tarif eden ipucu cümlesinde (`liste.duzenle_ipucu`) geçiyor, üstelik
+# iki dilde. Dördüne elle yazılınca biri değiştiğinde ipucu sessizce yalan
+# söylüyordu ve bunu hiçbir test yakalamıyordu.
+SIL_IKON = "🗑️"
+
 _TR = {
     # --- sayfa / hero ---
     "sayfa_basligi": "PyCBA Kiriş Analizi",
@@ -142,10 +148,10 @@ _TR = {
                    "Kendi kirişin için bu yükleri silip kenar çubuğundan yeni "
                    "yükler ekleyebilirsin.",
     "liste.duzenle_ipucu": "Bir yükü düzenlemek için başlığına tıklayıp açın; "
-                           "sağdaki 🗑️ yükü doğrudan siler.",
+                           f"sağdaki {SIL_IKON} yükü doğrudan siler.",
     "liste.satir": "**{i}.** {ad} — Açıklık {sp} — {ayrinti}",
     "liste.kaydet": "💾 Kaydet",
-    "liste.sil": "🗑️ Sil",
+    "liste.sil": f"{SIL_IKON} Sil",
     "liste.sil_yardim": "Bu yükü sil",
 
     # --- şema / sonuçlar ---
@@ -349,11 +355,11 @@ _EN = {
     "liste.ornek": "An example model is loaded: a 20 kN/m distributed load on "
                    "two equal spans. Delete these loads and add your own from "
                    "the sidebar to model your own beam.",
-    "liste.duzenle_ipucu": "Click a load's title to open and edit it; the 🗑️ on "
-                           "the right deletes it straight away.",
+    "liste.duzenle_ipucu": f"Click a load's title to open and edit it; the {SIL_IKON} "
+                           "on the right deletes it straight away.",
     "liste.satir": "**{i}.** {ad} — Span {sp} — {ayrinti}",
     "liste.kaydet": "💾 Save",
-    "liste.sil": "🗑️ Delete",
+    "liste.sil": f"{SIL_IKON} Delete",
     "liste.sil_yardim": "Delete this load",
 
     "sema.baslik": "Beam schematic",
