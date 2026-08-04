@@ -26,6 +26,12 @@ PARAM_UNITS = {
     "a": "m", "c": "m", "N": "kN", "n": "kN/m",
 }
 
+# Binlik ayraç: SI'nin dar KIRILMAZ boşluğu (U+202F). Kaynakta görünmez bir
+# karakterdir, bu yüzden tek yerde adlandırılıp her kullanımı buradan gelir —
+# dize içine doğrudan yazma. Kırılmaz olması şart: normal boşlukta "1 234.50"
+# dar bir sütunda iki satıra bölünür.
+BINLIK_AYRAC = chr(0x202F)
+
 # Kenar çubuğu altbilgisi. KAYNAK_URL, AGPL 13. maddesi gereği çalışan
 # uygulamada bulunmak zorunda; diğer ikisi künye. Adres tam şemayla yazılır —
 # "www..." ile başlayan bir markdown bağlantısı GÖRECELİ sayılıp uygulamanın
@@ -147,14 +153,39 @@ with st.sidebar:
     # Gerber kirişi: ara düğümlere iç mafsal. Uç düğümlerde mafsal anlamsızdır
     # (orada tek eleman var; mesnet tipi zaten belirler), bu yüzden seçenekler
     # yalnız 2..n_spans. Anahtar açıklık sayısına bağlı — açıklık azalınca artık
-    # var olmayan düğüm no'su seçili kalmasın.
-    hinges = st.multiselect(
-        t("mafsal.coklu_secim"),
-        options=list(range(2, n_spans + 1)),
-        format_func=lambda h: t("dugum_no", n=h),
-        help=t("mafsal.yardim"),
-        key=f"hinges_{n_spans}",
-    )
+    # var olmayan düğüm no'su seçili kalmasın (Streamlit `default`u yalnız anahtar
+    # session_state'te YOKKEN kullanır; anahtar değişmeseydi geçersiz seçim
+    # istisna fırlatırdı).
+    #
+    # Seçim ayrıca `gerber_kayit`ta tutulur: anahtar değişince widget durumu
+    # sıfırdan kurulduğu için açıklık sayısını 3→4 yapan kullanıcı seçtiği
+    # mafsalları da kaybediyordu. Kayıt süzülüp `default`a verilir — geçerli
+    # kalanlar korunur, düşenler aşağıda kullanıcıya söylenir (bkz. açıklık içi
+    # mafsallardaki aynı geri bildirim).
+    gerber_kayit = st.session_state.setdefault("gerber_kayit", [])
+    gerber_kalan = [h for h in gerber_kayit if 2 <= h <= n_spans]
+    gerber_dusen = [h for h in gerber_kayit if h not in gerber_kalan]
+    if n_spans > 1:
+        hinges = st.multiselect(
+            t("mafsal.coklu_secim"),
+            options=list(range(2, n_spans + 1)),
+            default=gerber_kalan,
+            format_func=lambda h: t("dugum_no", n=h),
+            help=t("mafsal.yardim"),
+            # Streamlit'in kendi yer tutucusu ("Choose options") İngilizcedir ve
+            # Python'dan dili değiştirilemez; boş kutuda Türkçe arayüzün ortasında
+            # tek İngilizce metin o kalıyordu.
+            placeholder=t("mafsal.secim_ipucu"),
+            key=f"hinges_{n_spans}",
+        )
+    else:
+        # Tek açıklıkta ara düğüm yoktur: seçenek listesi boş kalır ve Streamlit
+        # tıklanabilir ama hiçbir şey sunmayan ölü bir kutu çizerdi. Hiç çizme.
+        hinges = []
+    st.session_state.gerber_kayit = list(hinges)
+    if gerber_dusen:
+        st.warning(t("mafsal.gerber_dustu",
+                     dugumler=", ".join(str(h) for h in gerber_dusen)))
 
     # Açıklık İÇİNDE mafsal: kullanıcı (açıklık, sol uçtan a) verir; core bunu
     # açıklığı bölüp araya mesnetsiz düğüm koyarak çözer (BeamModel.expand).
@@ -194,15 +225,29 @@ with st.sidebar:
                 st.session_state.mh_nonce += 1
                 yeniden_calistir = True
         # Açıklık sayısı/uzunluğu küçültülünce geçersiz kalan mafsalları at —
-        # yoksa model sürekli doğrulama hatası verip arayüzü kilitler.
-        st.session_state.span_hinges = [
+        # yoksa model sürekli doğrulama hatası verip arayüzü kilitler. Atma
+        # SESSİZ OLMAMALI: aynı durumda yük listesi hata verip kullanıcıyı
+        # uyarıyor, mafsal ise iz bırakmadan siliniyordu (tutarsız geri bildirim).
+        # Uyarı yalnız düşüşün olduğu çalıştırmada görünür — bir sonrakinde
+        # listede zaten yoklar.
+        gecerli = [
             (s, a) for s, a in st.session_state.span_hinges
             if 1 <= s <= n_spans and 0 < a < float(spans[s - 1])
         ]
+        dusen_ic = len(st.session_state.span_hinges) - len(gecerli)
+        st.session_state.span_hinges = gecerli
+        if dusen_ic:
+            st.warning(t("mafsal.dustu", n=dusen_ic))
         for j, (s, a) in enumerate(st.session_state.span_hinges):
-            lc1, lc2 = st.columns([3, 1])
+            lc1, lc2 = st.columns([2, 1])
             lc1.write(t("mafsal.satir", sp=s, a=a))
-            if lc2.button("🗑️", key=f"mh_sil_{j}"):
+            # Butonun ADI metindir, ikon değil: yalnız "🗑️" yazınca butonun tek
+            # erişilebilir adı çöp kutusu emojisi oluyor ("wastebasket"). `help`
+            # bunu ONARMAZ — ölçüldü: Streamlit yardım metnini ayrı bir ipucu
+            # düğümüne koyar, butona ne `aria-label` ne `title` yazar. Yardım
+            # yine de verilir (fareyle bekleyene hangi mafsal olduğunu söyler).
+            if lc2.button(t("liste.sil"), key=f"mh_sil_{j}",
+                          help=t("mafsal.sil_yardim", sp=s, a=a)):
                 # `break`: liste bu döngünün içinde kısaldı; kalan satırları
                 # eski indekslerle çizmek yerine çık — blok sonundaki rerun
                 # listeyi zaten güncel haliyle yeniden kuracak.
@@ -362,7 +407,16 @@ else:
         sig = f"{i}_{ld.span}_" + "-".join(f"{v:g}" for v in ld.values)
         baslik = t("liste.satir", i=i + 1, ad=t(f"yuk.{ld.kind}"),
                    sp=ld.span, ayrinti=desc)
-        with st.expander(baslik):
+        # Silme, düzenleme formunun İÇİNDE de duruyor ama oraya ulaşmak için
+        # satırı açmak gerekiyordu; yanlış eklenen bir yükü atmak iki tıklık
+        # işti. Satırın sağındaki buton doğrudan siler. Etiket metinli: ikon
+        # tek başına erişilebilir ad üretmiyor (bkz. mafsal listesindeki not).
+        satir, sil_kol = st.columns([8, 1], gap="small")
+        if sil_kol.button(t("liste.sil"), key=f"hizli_sil_{sig}",
+                          help=t("liste.sil_yardim")):
+            st.session_state.loads.pop(i)
+            st.rerun()
+        with satir.expander(baslik):
             # Açıklık seçimi form DIŞINDA (ekleme formundaki desenin aynısı).
             # Form İÇİNDE olduğunda değişiklik ancak gönderimde işleniyor, o
             # rerun'da konum widget'ı (key'i new_span'e bağlı) yeni açıklığa göre
@@ -514,6 +568,18 @@ def _ekstrem_konum(x_arr, y_arr, en_buyuk):
     idx = int(y_arr.argmax() if en_buyuk else y_arr.argmin())
     return float(x_arr[idx])
 
+def _sayi(v, ondalik=2):
+    """Sayıyı binlik ayraçlı metne çevir: 1234.5 -> "1 234.50".
+
+    Ayraç SI'nin dar kırılmaz boşluğudur (U+202F); ondalık ayraç NOKTA kalır.
+    Yerelleştirilmedi (TR "1.234,56" olurdu) çünkü aynı ekrandaki girdi
+    alanları ve CSV çıktısı nokta ondalık kullanıyor — iki konvansiyonu yan
+    yana göstermek okuyanı yanıltır. SI biçimi her iki dilde de geçerlidir,
+    bu yüzden dil kataloğuna girmez.
+    """
+    return f"{v:,.{ondalik}f}".replace(",", BINLIK_AYRAC)
+
+
 def _biciml(v, olcek=1.0):
     """Ekstremi karta yazılacak metne çevir; "-0.00"ı "0.00" yapar.
 
@@ -521,7 +587,7 @@ def _biciml(v, olcek=1.0):
     "-0.00" diye basılır ve okuyan basınç sanır. Gösterim hassasiyetine
     yuvarlayıp +0.0 eklemek negatif sıfırı pozitife çevirir.
     """
-    return f"{round(v * olcek, 2) + 0.0:.2f}"
+    return _sayi(round(v * olcek, 2) + 0.0)
 
 def _kart(col, buyukluk, birim, xd, yd, olcek=1.0):
     """Kartı çiz: büyük rakam mutlak değerce yöneten ekstrem, diğeri caption'da.
@@ -608,7 +674,10 @@ else:
                 x=xr, y=yr, mode="lines", name=ad,
                 line=dict(color=renk, width=1.6),
                 fill="tozeroy" if dolgu else None, fillcolor=dolgu,
-                hovertemplate=f"{ad}: %{{y:.4g}} {birim}<extra></extra>",
+                # Binlik ayraç d3 biçim dizgesiyle ("," grubu) istenir; ayracın
+                # kendisi layout `separators` ile belirlenir — Python tarafındaki
+                # `_sayi` ile aynı SI dar boşluğu.
+                hovertemplate=f"{ad}: %{{y:,.4g}} {birim}<extra></extra>",
             ),
             row=i, col=1,
         )
@@ -665,7 +734,7 @@ else:
                 row=i, col=1,
             )
             fig.add_annotation(
-                x=x_e, y=deger, text=f"{deger:.4g} {birim} · {x_e:.2f} m",
+                x=x_e, y=deger, text=f"{_sayi(deger)} {birim} · {x_e:.2f} m",
                 showarrow=False,
                 # yshift EKRAN pikselidir: moment panelinde y ekseni ters olduğu
                 # için veri uzayındaki "üst" ekranda alta düşer, yön de terslenir.
@@ -699,6 +768,9 @@ else:
         showlegend=False,
         paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
         font=dict(color=_g_yazi),
+        # (ondalık, binlik) — eksen ve ipucu sayıları da `_sayi` ile aynı
+        # biçimde okunsun: ondalık nokta, binlik SI dar boşluğu.
+        separators=f".{BINLIK_AYRAC}",
     )
     # displayModeBar=False: zoom/pan araç çubuğu gizli (fixedrange ile zaten
     # işlevsiz) — hem mobilde başlıkla çakışmasını önler hem arayüzü sadeleştirir.

@@ -22,6 +22,9 @@ from ui_cizim import ciz_sema  # noqa: E402
 APP = str(Path(__file__).resolve().parent.parent / "app.py")
 YUK_EKLE = "FormSubmitter:yuk_ekle_form-➕ Yük ekle"
 MAFSAL_EKLE = "FormSubmitter:mafsal_ekle_form-➕ Mafsal ekle"
+# Binlik ayraç (U+202F, bkz. app.BINLIK_AYRAC) — kaynakta görünmez
+# olduğu için adlandırılır, dize içine doğrudan yazılmaz.
+AYRAC = chr(0x202F)
 
 
 def _uygulama(bos: bool = True) -> AppTest:
@@ -78,6 +81,85 @@ def test_kenar_cubugu_widget_durumu_rerun_da_korunur(eylem):
     assert not at.exception
     assert at.sidebar.toggle(key="goster_D").value is False, "sehim anahtarı sıfırlandı"
     assert at.sidebar.number_input(key="cokme_0").value == 3.0, "çökme değeri sıfırlandı"
+
+
+def _aciklik_sayisi(at: AppTest):
+    """"Açıklık sayısı" alanı (anahtarsız çizilir; etiketinden bulunur)."""
+    return next(ni for ni in at.sidebar.number_input if ni.label == "Açıklık sayısı")
+
+
+def test_gerber_secimi_aciklik_sayisi_degisince_korunur():
+    """Açıklık eklemek seçili iç mafsalları silmemeli; silinen varsa söylenmeli.
+
+    Multiselect'in anahtarı açıklık sayısına bağlı (geçersiz seçim Streamlit'te
+    istisna fırlatır), yani widget durumu her değişimde sıfırdan kuruluyor ve
+    3→4 yapan kullanıcı seçimini de kaybediyordu. `gerber_kayit` süzülüp
+    `default`a verilir. Açıklık AZALINCA düşen seçim gerçekten silinir ama
+    artık sessizce değil — yük listesi aynı durumda zaten hata veriyordu.
+    """
+    at = _uygulama()
+    _aciklik_sayisi(at).set_value(3).run()
+    at.sidebar.multiselect(key="hinges_3").set_value([2, 3]).run()
+    assert not at.exception
+
+    _aciklik_sayisi(at).set_value(4).run()
+    assert at.sidebar.multiselect(key="hinges_4").value == [2, 3], "seçim kayboldu"
+    assert not at.sidebar.warning, "hiçbir mafsal düşmediği hâlde uyarı çıktı"
+
+    _aciklik_sayisi(at).set_value(2).run()
+    assert at.sidebar.multiselect(key="hinges_2").value == [2]
+    assert any("3" in w.value for w in at.sidebar.warning), "düşen mafsal söylenmedi"
+    # Uyarı yalnız düşüşün olduğu çalıştırmada görünür (kayıt güncellendi).
+    at.run()
+    assert not at.sidebar.warning
+
+
+def test_tek_aciklikta_gerber_kutusu_cizilmez():
+    """Tek açıklıkta ara düğüm yok — boş seçenekli ölü bir kutu gösterilmemeli."""
+    at = _uygulama()
+    assert at.sidebar.multiselect, "iki açıklıkta Gerber kutusu olmalı"
+    _aciklik_sayisi(at).set_value(1).run()
+    assert not at.sidebar.multiselect
+    assert not at.exception
+
+
+def test_aciklik_ici_mafsal_sessizce_silinmez():
+    """Açıklık kısalınca düşen açıklık içi mafsal kullanıcıya bildirilmeli."""
+    at = _uygulama()
+    at.sidebar.number_input(key="mh_a_1_6_0").set_value(4.0)
+    at.sidebar.button(key=MAFSAL_EKLE).click().run()
+    assert at.session_state["span_hinges"] == [(1, 4.0)]
+    at.sidebar.number_input(key="span_0").set_value(3.0).run()
+    assert at.session_state["span_hinges"] == []
+    assert at.sidebar.warning, "mafsal sessizce silindi"
+
+
+def test_yuk_satirindan_dogrudan_silinir():
+    """Satırın sağındaki 🗑️ yükü açmadan silmeli (anahtar yükün imzasına bağlı)."""
+    at = _uygulama(bos=False)
+    assert len(at.session_state["loads"]) == 2
+    at.button(key="hizli_sil_0_1_20").click().run()
+    assert not at.exception
+    kalan = at.session_state["loads"]
+    assert len(kalan) == 1 and kalan[0].span == 2
+
+
+def test_buyuk_sayilar_binlik_ayracla_yazilir():
+    """1000'i aşan değerler SI dar boşluğuyla gruplanmalı: "-2 250.00".
+
+    İki eşit açıklığın yalnız birinde w yayılı yük varsa mesnet momenti
+    M_B = -wL²/16 (kapalı formül) = -1000·36/16 = -2250 kNm. Burada yöneten
+    ekstrem açıklık momenti olduğu için M_B karta değil caption'a düşer; ikisi
+    de gruplanmalı. Ondalık ayraç NOKTA kalır — girdi alanları ve CSV de öyle.
+    """
+    at = _uygulama()
+    _yuk_ekle(at, 1000.0, nonce=0)
+    kartlar = {m.label: m.value for m in at.metric}
+    assert AYRAC in kartlar["Maks. moment [kNm]"]
+    assert any(f"Min. -2{AYRAC}250.00" in c.value for c in at.caption)
+    # (CSV içeriği burada denetlenemez: AppTest indirme butonunun gövdesini
+    # taşımıyor. Gruplama yalnız `_sayi`dan gelir, `_diyagram_csv` onu
+    # çağırmaz — CSV makine okunur kalır.)
 
 
 def test_ilk_ekran_ornek_modelle_gelir():

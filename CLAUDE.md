@@ -266,6 +266,18 @@ Yaşanmış tuzaklar — tahmin etme, DOM'dan `getComputedStyle` ile ölç:
   `stAppDeployButton`) bu listeye EKLEME: zemini de döner, açık bir kutuya
   dönüşür. Ters çevrilen bir öğeye ayrıca açık renk vermek de onu tekrar
   koyulaştırır — ikisi bir arada kullanılmaz.
+- **`help=` verilen widget ÇOCUK seçicisinden kaçar.** Streamlit butonu ipucu
+  sarmalayıcısının içine koyar
+  (`.stButton > div > span.stTooltipIcon > span.stTooltipHoverTarget > button`),
+  yani `.stButton > button` hiçbir şeye uymaz — ölçüldü:
+  `document.querySelectorAll('.stButton > button').length === 0`. `ui_tema.py`
+  bu yüzden TORUN seçici kullanır (`.stButton button`). Yeni bir widget türüne
+  kural yazarken `matches()` ile doğrula.
+- Buton ölçümünde expander KAPALIYKEN alınan renk yanıltıcıdır (form gönder
+  butonları beyaz ölçülüyor). Ölçmeden önce `details`leri aç.
+- `st.button(help=...)` erişilebilir ad VERMEZ: butonda ne `aria-label` ne
+  `title` doğar (ölçüldü), yardım ayrı bir ipucu düğümüne yazılır. İkon butona
+  mutlaka metin etiketi ver (`t("liste.sil")` gibi), `help` yalnız ek bağlamdır.
 - Emotion sınıfları (`st-emotion-cache-…`, `st-cm`) sürümle değişir; asla seçici
   olarak kullanma — testid/baseweb/öznitelik yolu kullan.
 - `ui_tema.py` içe aktarılmış modüldür: değiştirince Streamlit'i **yeniden başlat**,

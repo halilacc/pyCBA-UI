@@ -52,6 +52,7 @@ _TR = {
     "mafsal.coklu_secim": "İç mafsallı düğümler (Gerber)",
     "mafsal.yardim": "Seçilen düğümde kiriş moment aktarmaz; şemada içi boş "
                      "daire ile gösterilir.",
+    "mafsal.secim_ipucu": "Düğüm seçin",
     "mafsal.baslik": "Açıklık içi mafsal",
     "mafsal.aciklama": "Mafsalı mesnet hizasında değil, açıklığın ortasında bir "
                        "noktada istiyorsan buradan ekle. Açıklık o noktadan "
@@ -64,6 +65,12 @@ _TR = {
                            "seçimini kullan.",
     "mafsal.zaten_var": "Bu mafsal zaten tanımlı.",
     "mafsal.satir": "Açıklık {sp} · a = {a:g} m",
+    "mafsal.sil_yardim": "Bu mafsalı sil (açıklık {sp}, a = {a:g} m)",
+    # Geometri küçültülünce geçersiz kalan mafsallar atılır; bu iki uyarı o
+    # atmayı görünür kılar (yük listesi aynı durumda zaten hata veriyordu).
+    "mafsal.dustu": "Geometri değişti: açıklık dışında kalan {n} mafsal silindi.",
+    "mafsal.gerber_dustu": "Geometri değişti: artık bulunmayan düğümlerdeki iç "
+                           "mafsallar kaldırıldı (düğüm {dugumler}).",
     "cokme.baslik": "Mesnet çökmesi",
     "cokme.aciklama": "Bir mesnedin düşey olarak yer değiştirdiği durum (zemin "
                       "oturması, kazık çökmesi). Değer AŞAĞI yönde pozitiftir; "
@@ -134,10 +141,12 @@ _TR = {
     "liste.ornek": "Örnek model yüklü: iki eşit açıklıkta 20 kN/m yayılı yük. "
                    "Kendi kirişin için bu yükleri silip kenar çubuğundan yeni "
                    "yükler ekleyebilirsin.",
-    "liste.duzenle_ipucu": "Bir yükü düzenlemek için başlığına tıklayıp açın.",
+    "liste.duzenle_ipucu": "Bir yükü düzenlemek için başlığına tıklayıp açın; "
+                           "sağdaki 🗑️ yükü doğrudan siler.",
     "liste.satir": "**{i}.** {ad} — Açıklık {sp} — {ayrinti}",
     "liste.kaydet": "💾 Kaydet",
     "liste.sil": "🗑️ Sil",
+    "liste.sil_yardim": "Bu yükü sil",
 
     # --- şema / sonuçlar ---
     "sema.baslik": "Kiriş şeması",
@@ -256,6 +265,7 @@ _EN = {
     "mafsal.coklu_secim": "Nodes with internal hinges (Gerber)",
     "mafsal.yardim": "The beam transfers no moment at the selected node; shown "
                      "as a hollow circle in the schematic.",
+    "mafsal.secim_ipucu": "Choose nodes",
     "mafsal.baslik": "Hinge within a span",
     "mafsal.aciklama": "Use this if you want the hinge somewhere inside a span "
                        "rather than at a support. The span is split "
@@ -268,6 +278,11 @@ _EN = {
                            "node selection above.",
     "mafsal.zaten_var": "This hinge is already defined.",
     "mafsal.satir": "Span {sp} · a = {a:g} m",
+    "mafsal.sil_yardim": "Delete this hinge (span {sp}, a = {a:g} m)",
+    "mafsal.dustu": "The geometry changed: {n} hinge(s) left outside the spans "
+                    "were removed.",
+    "mafsal.gerber_dustu": "The geometry changed: internal hinges at nodes that "
+                           "no longer exist were removed (node {dugumler}).",
     "cokme.baslik": "Support settlement",
     "cokme.aciklama": "A support that moves vertically (soil settlement, pile "
                       "movement). A positive value means DOWNWARD; enter a "
@@ -334,10 +349,12 @@ _EN = {
     "liste.ornek": "An example model is loaded: a 20 kN/m distributed load on "
                    "two equal spans. Delete these loads and add your own from "
                    "the sidebar to model your own beam.",
-    "liste.duzenle_ipucu": "Click a load's title to open and edit it.",
+    "liste.duzenle_ipucu": "Click a load's title to open and edit it; the 🗑️ on "
+                           "the right deletes it straight away.",
     "liste.satir": "**{i}.** {ad} — Span {sp} — {ayrinti}",
     "liste.kaydet": "💾 Save",
     "liste.sil": "🗑️ Delete",
+    "liste.sil_yardim": "Delete this load",
 
     "sema.baslik": "Beam schematic",
     "sema.eksen_x": "Distance along beam [m]",

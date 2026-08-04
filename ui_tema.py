@@ -92,7 +92,7 @@ _TEMA_CSS = """<style>
 
 /* Görüntü (display) yazı tipi */
 h1, h2, h3, [data-testid="stMetricValue"],
-.stButton > button, .stDownloadButton > button, [data-testid="stFormSubmitButton"] > button,
+.stButton button, .stDownloadButton button, [data-testid="stFormSubmitButton"] > button,
 .pc-hero__title, .pc-hero__eyebrow {
   font-family: 'Space Grotesk', ui-sans-serif, system-ui, -apple-system, sans-serif !important;
   letter-spacing: -0.018em;
@@ -233,15 +233,15 @@ h1, h2, h3, [data-testid="stMetricValue"],
 }
 
 /* --- Butonlar: press feedback + hover --- */
-.stButton > button, .stDownloadButton > button, [data-testid="stFormSubmitButton"] > button {
+.stButton button, .stDownloadButton button, [data-testid="stFormSubmitButton"] > button {
   border-radius: 10px; font-weight: 600;
   transition: transform 140ms var(--pc-ease), box-shadow 160ms var(--pc-ease),
               border-color 160ms var(--pc-ease), background-color 160ms var(--pc-ease);
 }
-.stButton > button:hover, .stDownloadButton > button:hover, [data-testid="stFormSubmitButton"] > button:hover {
+.stButton button:hover, .stDownloadButton button:hover, [data-testid="stFormSubmitButton"] > button:hover {
   border-color: var(--pc-acc); box-shadow: var(--pc-sh-sm);
 }
-.stButton > button:active, .stDownloadButton > button:active, [data-testid="stFormSubmitButton"] > button:active {
+.stButton button:active, .stDownloadButton button:active, [data-testid="stFormSubmitButton"] > button:active {
   transform: scale(0.98);
 }
 
@@ -374,7 +374,7 @@ h1, h2, h3, [data-testid="stMetricValue"],
 /* --- Azaltılmış hareket --- */
 @media (prefers-reduced-motion: reduce) {
   [data-testid="stMainBlockContainer"], .pc-hero__line, [data-testid="stSidebar"] { animation: none !important; }
-  [data-testid="stMetric"], .stButton > button, .stDownloadButton > button,
+  [data-testid="stMetric"], .stButton button, .stDownloadButton button,
   [data-testid="stFormSubmitButton"] > button, [data-testid="stExpander"] details, .pc-tablo tbody tr { transition: none !important; }
   [data-testid="stMetric"]:hover { transform: none !important; }
   /* Parlama tamamen kapatılır (kayan gradyan hareket algısı yaratır). */
@@ -551,8 +551,16 @@ label, [data-testid="stWidgetLabel"] *, [data-testid="stCaptionContainer"], [dat
    (DOM'dan doğrulandı: kind=secondaryFormSubmit, data-testid=
    stBaseButton-secondaryFormSubmit). Eski [kind="secondary"] seçicisi bu yüzden
    hiçbir şeye uymuyor, "Mafsal ekle" gece modunda beyaz kalıyordu. Yalnız
-   ikincil hedeflenir; birincil (mor "Yük ekle") vurgu rengini korur. */
-.stButton > button, .stDownloadButton > button,
+   ikincil hedeflenir; birincil (mor "Yük ekle") vurgu rengini korur.
+
+   ÇOCUK değil TORUN seçici (`.stButton button`): `help=` verilen bir butonu
+   Streamlit ipucu sarmalayıcısının içine koyuyor
+   (.stButton > div > span.stTooltipIcon > span.stTooltipHoverTarget > button),
+   yani `.stButton > button` HİÇBİR ŞEYE uymuyordu — ölçüldü:
+   `document.querySelectorAll('.stButton > button').length === 0`. Yük
+   listesindeki 🗑️ butonu bu yüzden gece modunda beyaz kalıyordu. Aynı tuzak
+   indirme butonunda da var (bugün help'siz olduğu için görünmüyor). */
+.stButton button, .stDownloadButton button,
 [data-testid="stFormSubmitButton"] button[kind="secondaryFormSubmit"] {
   background-color: var(--pc-surface) !important; color: var(--pc-ink) !important; border-color: var(--pc-line) !important;
 }
