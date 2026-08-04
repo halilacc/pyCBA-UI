@@ -285,8 +285,11 @@ Yaşanmış tuzaklar — tahmin etme, DOM'dan `getComputedStyle` ile ölç:
 
 ## Dağıtım ve tanıtım görseli
 
-Streamlit Community Cloud, **bir hafta ziyaret edilmeyen** uygulamayı uyutur;
-ziyaretçi "uyandır" düğmesi görür ve ~30-60 sn bekler. Soğuk başlangıcın
+Streamlit Community Cloud, **bir gün kadar ziyaret edilmeyen** uygulamayı
+uyutur; ziyaretçi "uyandır" düğmesi görür ve ~30-60 sn bekler. (Belgelerdeki
+"bir hafta" rakamı GERÇEĞİ VERMİYOR: 2026-08-04'te bir önceki günün ziyaretine
+rağmen uygulama uykuda bulundu. Sayıyı belgeden değil gözlemden yaz.) Soğuk
+başlangıcın
 sebebi kod DEĞİL (bağımlılıkların toplam import maliyeti ölçüldü: 1.56 s);
 konteyner ayağa kalkması. `app.py`'de optimize edecek bir şey arama.
 **Uykuyu barındırıcı değiştirerek çözme yolu KAPANDI (2026-08-03) — yeniden
@@ -295,9 +298,9 @@ açma.** Hugging Face Spaces aynası yazılmıştı (`hf-aynasi.yml` +
 Streamlit SDK'sı kullanımdan kaldırıldı (Docker SDK + şablon gerekiyor) ve
 compute çalıştıran Space'ler ücretli plana taşındı, ücretsizde yalnız Python
 çalıştırmayan Static kaldı. Render ücretsiz katmanı DAHA KÖTÜ bir takas:
-**15 dakika** trafiksizlikte uyur (Streamlit Cloud 7 gün), üstelik 512 MB /
-0.1 CPU. Yani ziyaretçi Streamlit Cloud'da haftanın çoğunda anında açılışa
-kavuşurken Render'da neredeyse her seferinde bekler. Cloud Run teknik olarak
+**15 dakika** trafiksizlikte uyur (Streamlit Cloud ~1 gün), üstelik 512 MB /
+0.1 CPU. Yani Streamlit Cloud'da günde bir ziyaret uygulamayı uyanık tutmaya
+yeterken Render'da neredeyse her ziyaretçi bekler. Cloud Run teknik olarak
 daha iyi ama Dockerfile + kart ister.
 
 Karar: **barındırıcı değişmiyor, uyandırmayı ziyaretçi yapıyor.** README bunu
