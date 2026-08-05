@@ -286,7 +286,7 @@ Yaşanmış tuzaklar — tahmin etme, DOM'dan `getComputedStyle` ile ölç:
 - `ui_tema.py` içe aktarılmış modüldür: değiştirince Streamlit'i **yeniden başlat**,
   yalnız sayfayı yenilemek yetmez.
 
-## Dağıtım ve tanıtım görseli
+## Dağıtım ve tanıtım videosu
 
 Streamlit Community Cloud, **bir gün kadar ziyaret edilmeyen** uygulamayı
 uyutur; ziyaretçi "uyandır" düğmesi görür ve ~30-60 sn bekler. (Belgelerdeki
@@ -309,12 +309,34 @@ Karar: **barındırıcı değişmiyor, uyandırmayı ziyaretçi yapıyor.** READ
 ziyaretçiye açıkça söylüyor. Uygulamayı uyanık tutan zamanlanmış iş de önerildi
 ve İSTENMEDİ — bir daha teklif etme.
 
-`docs/tanitim.gif` headless Chrome + CDP ile çekildi (Claude in Chrome eklentisi
-bağlanmıyordu). İki tuzak ölçülerek bulundu:
+README başındaki tanıtım 2026-08-05'te GIF'ten **videoya** geçti; düz bir
+`https://github.com/user-attachments/assets/<uuid>` satırıdır (`docs/tanitim.gif`
+silindi). Nasıl çalıştığı ölçülerek bulundu — tahmin etme:
+- **`<video>` etiketi GitHub sanitizer'ında SİLİNİR.** `POST /markdown`'a
+  verildi, çıktı boş `<p>`. Depodaki bir mp4'e giden URL de yalnız indirme
+  bağlantısı olur, oynatıcıya dönmez. Videoyu depoda tutmanın anlamı yok;
+  oynatıcıyı doğuran şey, düz URL'nin kendi satırında durmasıdır.
+- Tek yükleme yolu issue/PR yorum kutusuna sürükle-bırak. API'si YOKTUR, elle
+  tarayıcıdan yapılır (Claude in Chrome bağlanırsa `file_upload` denenebilir ama
+  aracın 10 MB sınırı var).
+- **Yorum GÖNDERİLMEZSE varlık herkese açık olmaz.** Gönderilmemiş taslaktaki
+  varlık kimliksiz istekte 404, yükleyenin token'ıyla 200 döndü — yani yükleyen
+  kişi çalıştığını sanır. Yeni varlığı README'ye koymadan önce `curl` ile
+  KİMLİKSİZ test et; 200 + `video/mp4` görmeden commit etme. ("Issue'yu
+  göndermeye gerek yok" tavsiyesi eski `user-images.githubusercontent.com`
+  akışına aittir, `user-attachments`ta geçersiz.)
+- GitHub eklenti sınırı 10 MB. Ham kayıt (1080p30, 4.4 Mbps, 10.7 MB)
+  `-an -crf 24 -preset slow -movflags +faststart` ile 3.9 MB'a indi, SSIM 0.999.
+  Ses izi dijital sessizdi (−91 dB), atıldı. Kayıt TAM renk aralığındadır
+  (yuvj420p): `scale=in_range=full:out_range=full` + `-color_range pc`
+  vermezsen beyaz zemin 255'ten 235'e iner ve arayüz solar.
+
+Yeni kayıt gerekirse headless Chrome + CDP ile alınır (Claude in Chrome eklentisi
+bağlanmıyor). İki tuzak ölçülerek bulundu:
 - **Gece modu anahtarına `Input.dispatchMouseEvent` TUTMUYOR.** Gizli input'a
   JS `.click()` gönder: `[data-testid="stSidebar"] [data-testid="stCheckbox"] input`.
   Doğrulaması `stApp`in zemin rengidir: `rgb(251,251,250)` -> `rgb(21,22,27)`.
 - Kaydırma `window.scrollTo` ile değil `Input.dispatchMouseEvent type=mouseWheel`
   ile yapılır (Streamlit'in kendi kaydırma kabı var).
-GIF'i güncellerken uygulamayı ayrı bir portta başlat ve PID'yi öldürmeyi unutma
+Kayıt alırken uygulamayı ayrı bir portta başlat ve PID'yi öldürmeyi unutma
 (bkz. yukarıdaki "Streamlit yeniden başlatma" notu).

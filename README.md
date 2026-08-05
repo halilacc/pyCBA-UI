@@ -16,7 +16,7 @@ depo onun üstüne oturan sunum katmanı.
 Uyku ekranı çıkarsa uyandırma düğmesine bas — açılması ~ 1 dakika kadar sürer.)*
 
 
-![Uygulamanın tanıtımı: şema, diyagramlar, tepki tablosu ve gece modu](docs/tanitim.gif)
+https://github.com/user-attachments/assets/4ce9211e-42a3-442b-ba37-c490403169bb
 
 ## Neden yazdım
 
