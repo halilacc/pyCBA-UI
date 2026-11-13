@@ -1,6 +1,6 @@
 # pyCBA-UI
 
-[![app](https://img.shields.io/badge/app-live-FF4B4B?logo=streamlit&logoColor=white)](https://pycba-ui-yap1.streamlit.app)
+[![app](https://img.shields.io/badge/app-live-000000?logo=vercel&logoColor=white)](https://pycba-web.vercel.app)
 [![python](https://img.shields.io/badge/python-3.13%20%7C%203.14-3776AB?logo=python&logoColor=white)](https://www.python.org)
 [![Tests](https://img.shields.io/github/actions/workflow/status/halilacc/pyCBA-UI/testler.yml?branch=main&label=Tests&logo=github)](https://github.com/halilacc/pyCBA-UI/actions/workflows/testler.yml)
 [![docs](https://img.shields.io/badge/docs-pycba-4338CA)](https://ccaprani.github.io/pycba)
@@ -11,12 +11,11 @@ forma giriyorsun; mesnet tepkileri, kesme ve moment diyagramları ve sehim eğri
 anında çıkıyor. Hesabı [PyCBA](https://github.com/ccaprani/pycba) yapıyor, bu
 depo onun üstüne oturan sunum katmanı.
 
-**Canlı sürüm:** https://pycba-ui-yap1.streamlit.app
-*(Streamlit Community Cloud, bir gün kadar ziyaret edilmeyen uygulamayı uyutuyor.
-Uyku ekranı çıkarsa uyandırma düğmesine bas — açılması ~ 1 dakika kadar sürer.)*
+**Canlı sürüm:** https://pycba-web.vercel.app
+*(Hesap, Vercel'de sunucusuz bir Python API'sinde çalışıyor; uzun süre kullanılmadıysa
+ilk istek birkaç saniye geç gelebilir.)*
 
-
-https://github.com/user-attachments/assets/4ce9211e-42a3-442b-ba37-c490403169bb
+![Ekran görüntüsü](docs/ekran.png)
 
 ## Neden yazdım
 
@@ -58,11 +57,22 @@ git clone https://github.com/halilacc/pyCBA-UI
 cd pyCBA-UI
 python -m venv .venv
 .venv\Scripts\pip install -r requirements.txt
-.venv\Scripts\python -m streamlit run app.py
+.venv\Scripts\python -m uvicorn api.index:app --port 8000
 ```
 
+Ayrı bir terminalde ön yüz (Node.js 22+ gerekir):
+
+```bash
+cd web
+npm install
+npm run dev
+```
+
+http://localhost:3000 açılır; `/api/*` istekleri 127.0.0.1:8000'e yönlenir
+(başka bir API için `API_URL` ortam değişkenini ver).
+
 Linux ya da macOS'ta `.venv\Scripts\` yerine `.venv/bin/` yazacaksın. Geliştirme
-Python 3.14 ile yapılıyor, dağıtımdaki sürüm 3.13.
+Python 3.14 ile yapılıyor, Vercel'de 3.12 çalışıyor.
 
 ## Sonuçlara ne kadar güvenebilirsin
 
@@ -78,12 +88,12 @@ testin karşılığı elle çözülebilen bir problem. Referans vaka iki eşit a
 20 kN/m yayılı yük: M_B = −90 kNm, tepkiler 45/150/45 kN — el hesabıyla aynı.
 
 ```bash
-.venv\Scripts\python -m pytest -q                 # çekirdek + dil + arayüz testleri
+.venv\Scripts\python -m pytest -q                 # çekirdek + dil + API + şema testleri
 .venv\Scripts\python ornek1_surekli_kiris.py      # referans problem, elle doğrulanmış
 ```
 
 Testler `main`'e her itmede ve her pull request'te GitHub Actions'ta 3.13 ve
-3.14 ile çalışıyor (`.github/workflows/testler.yml`).
+3.14 ile çalışıyor; ön yüz de aynı akışta derleniyor (`.github/workflows/testler.yml`).
 
 Yine de şunu açık yazayım: bu bir kontrol ve öğrenme aracı, tasarım yazılımı
 değil. Bir projeye koymadan önce sonucu kendi hesabınla karşılaştır.
@@ -111,11 +121,13 @@ Bunlar eksik değil, kararlar.
 
 ## Mimari
 
-`core/` Streamlit'i hiç import etmez. Model ve doğrulama `model.py`'de, çözüm
-`solver.py`'de, eksenel çözüm `axial.py`'de, kullanıcıya gösterilen hata
-mesajları `mesajlar.py`'de. `app.py` yalnızca sunum yapar. Arayüzü bir gün
-Gradio ya da Flask'a taşımak istersem çekirdeğe dokunmam gerekmesin diye böyle
-kuruldu. Arayüz metinleri de koddan ayrı: `ui_dil.py` iki dilli katalog.
+Üç katman var. `core/` hiçbir web çerçevesini import etmez: model ve doğrulama
+`model.py`'de, çözüm `solver.py`'de, eksenel çözüm `axial.py`'de, kullanıcıya
+gösterilen hata mesajları `mesajlar.py`'de. `api/index.py` (FastAPI) çekirdeği
+HTTP'ye açar ve kiriş şemasını (`ui_cizim.py`) SVG olarak çizer. `web/` (Next.js)
+yalnızca sunum yapar. Arayüz metinleri koddan ayrı: `ui_dil.py` iki dilli katalog,
+API üzerinden ön yüze gider. Önceki Streamlit arayüzünün yerini bu yığın aldı;
+çekirdeğe dokunulmadı.
 
 Katkı ya da hata bildirimi için issue açabilirsin.
 
@@ -130,14 +142,14 @@ bağlantısı bunun için var.
 
 ![Screenshot](docs/ekran.png)
 
-A browser interface for continuous beam analysis, built on top of PyCBA. You
+A browser interface (Next.js + FastAPI) for continuous beam analysis, built on top of PyCBA. You
 enter spans, supports and loads in a form and get support reactions, shear and
 bending moment diagrams and the deflected shape. It handles multi-span beams,
 Gerber hinges (at a support or inside a span), support settlement, elastic
 spring supports, axial loads, an editable load list and CSV export. The
 interface is available in Turkish and English.
 
-The analysis code in `core/` has no Streamlit dependency and is covered by tests
+The analysis code in `core/` has no web-framework dependency and is covered by tests
 (run on every push to `main` and every pull request via GitHub Actions), each
 verified against a hand or
 closed-form solution rather than frozen PyCBA output. Treat it as a study and

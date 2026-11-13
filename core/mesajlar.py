@@ -4,7 +4,7 @@
 doğrudan kullanıcıya gösteriliyor; dolayısıyla dil bilgisi bir yerden gelmek
 zorunda. Çözüm: dil, çağıran katmandan **açık parametre** olarak geçirilir
 (`validate(dil=...)`, `solve(model, dil=...)`). Modül düzeyinde "geçerli dil"
-global'i BİLEREK yoktur: Streamlit her kullanıcı oturumunu ayrı bir iş
+global'i BİLEREK yoktur: Sunucu istekleri ayrı bir iş
 parçacığında çalıştırdığı için global, bir kullanıcının dil seçimini diğerine
 sızdırırdı.
 

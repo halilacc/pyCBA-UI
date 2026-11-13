@@ -1,18 +1,5 @@
 pycba==1.0.1
-# Streamlit ARA SÜRÜME kadar sabitlenir (~= 1.59.x): ui_tema.py'nin gece modu
-# CSS'i Streamlit'in iç DOM yapısına (data-testid, data-baseweb, react-aria
-# ile çizilen sanal listeler) yapışıktır. Cloud her yeniden kurulumda
-# requirements.txt'i taze çözdüğü için sabitlenmemiş bir ara sürüm gece modunu
-# sessizce beyazlatabilir. Yükseltme ELDE denenip yapılır (bkz. CLAUDE.md).
-streamlit~=1.59.2
-# Streamlit'in KENDİ bağımlılığı; kısıtı `starlette>=0.40.0`, yani üst sınırı
-# YOK ve Cloud her kurulumda en yenisini çeker. Starlette 1.4.0
-# `GZipResponder.__init__`e zorunlu `thread_minimum_size` argümanı ekledi;
-# streamlit 1.59.2 onu geçirmediği için sunucu ayağa kalkarken her isteğe
-# TypeError ile 500 döndü — uygulama 2026-08-05'te Cloud'da hiç açılmadı,
-# app.py'ye sıra bile gelmedi. Yerelde çalışan ve sabitlenen sürüm 1.3.x.
-# Streamlit sürümü yükseltilirken bu sınır da gözden geçirilmeli.
-starlette<1.4
-plotly>=6.9
+fastapi>=0.115
+uvicorn>=0.30
 matplotlib>=3.8
 numpy>=1.26

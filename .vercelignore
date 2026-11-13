@@ -1,0 +1,13 @@
+.venv
+web
+tests
+docs
+cikti
+pyCBA-video
+pyCBA-UI-Planı.md
+ornek*.py
+app.py
+ui_tema.py
+requirements-dev.txt
+__pycache__
+requirements.txt

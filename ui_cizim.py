@@ -1,10 +1,10 @@
 """
-Şema çizim yardımcıları — sunum katmanı (Streamlit'e bağımlı DEĞİL).
+Şema çizim yardımcıları — sunum katmanı (web çerçevesine bağımlı DEĞİL).
 
 PyCBA'nın çizicisi yalnız düşey yükleri ve düşey/moment tepkilerini tanır;
 eksenel yükler ve yatay tepkiler burada matplotlib ile şemaya eklenir.
-Hesap `core/`dedir; bu modül yalnızca çizer. `app.py` kullanır, ancak
-Streamlit gerektirmediği için tarayıcısız da test edilebilir.
+Hesap `core/`dedir; bu modül yalnızca çizer. `api/index.py` kullanır; web
+sunucusu gerektirmediği için tarayıcısız da test edilebilir.
 """
 
 from dataclasses import replace

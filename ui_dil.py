@@ -29,6 +29,8 @@ SIL_IKON = "🗑️"
 _TR = {
     # --- sayfa / hero ---
     "sayfa_basligi": "PyCBA Kiriş Analizi",
+    "web.yukleniyor": "Hesaplanıyor…",
+    "web.baglanti_hatasi": "Sunucuya ulaşılamadı. Bağlantını kontrol edip yeniden dene.",
     "hero.eyebrow": "Yapı statiği · sürekli kiriş",
     "hero.baslik": "Sürekli Kiriş Analizi",
     "hero.altyazi": "PyCBA çekirdeğiyle mesnet tepkileri, kesit tesirleri ve "
@@ -244,6 +246,8 @@ _TR = {
 
 _EN = {
     "sayfa_basligi": "PyCBA Beam Analysis",
+    "web.yukleniyor": "Calculating…",
+    "web.baglanti_hatasi": "Could not reach the server. Check your connection and try again.",
     "hero.eyebrow": "Structural statics · continuous beam",
     "hero.baslik": "Continuous Beam Analysis",
     "hero.altyazi": "Support reactions, internal forces and deflection powered "

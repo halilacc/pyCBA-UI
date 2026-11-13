@@ -2,3 +2,4 @@
 # Community Cloud onu kurar, sunucuda pytest'e gerek yok.
 -r requirements.txt
 pytest>=8.0
+httpx>=0.27

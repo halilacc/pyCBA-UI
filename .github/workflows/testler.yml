@@ -2,8 +2,8 @@ name: testler
 
 # Testler README'nin güven argümanının tamamı; elle çalıştırılmaya bırakılmaz.
 # (Sayıyı buraya YAZMA: test eklendikçe bayatlıyor, kimse de düzeltmiyor.)
-# Ayrıca bağımlılık sabitlerinin (özellikle streamlit~=1.59.2) gerçekten
-# kurulabildiğini ve arayüzün AppTest altında hâlâ açıldığını doğrular.
+# Ayrıca Python bağımlılıklarının kurulabildiğini ve Next.js ön yüzünün
+# (tip denetimi dahil) derlendiğini doğrular.
 on:
   push:
     branches: [main]
@@ -16,7 +16,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # 3.13 = Streamlit Cloud'un çalıştırdığı sürüm, 3.14 = geliştirme sürümü.
+        # 3.14 = geliştirme sürümü; Vercel 3.12+ çalıştırır.
         python-version: ["3.13", "3.14"]
     steps:
       - uses: actions/checkout@v5
@@ -47,3 +47,19 @@ jobs:
         env:
           MPLBACKEND: Agg
         run: python ornek1_surekli_kiris.py
+
+  web:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+      # `next build` TypeScript denetimini de yapar.
+      - run: npm run build

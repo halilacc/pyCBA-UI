@@ -30,12 +30,12 @@ olarak içe aktarılmıştır):
     Belgeler: https://ccaprani.github.io/pycba/
 
 PyCBA AGPL-3.0-or-later ile lisanslandığı için bu arayüz de aynı lisansla
-dağıtılır. Yazılım ağ üzerinden kullanıma sunulduğunda (örn. Streamlit Cloud),
+dağıtılır. Yazılım ağ üzerinden kullanıma sunulduğunda (örn. Vercel),
 AGPL'nin 13. maddesi uyarınca kullanıcılara kaynak koda erişim sunulur;
 uygulama bunu kenar çubuğundaki "Kaynak kodu" bağlantısıyla yapar.
 
-Diğer bağımlılıklar (Streamlit, NumPy, SciPy, Matplotlib, Plotly) kendi
-lisanslarıyla dağıtılır; ayrıntılar için requirements.txt ve ilgili projelerin
+Diğer bağımlılıklar (FastAPI, NumPy, SciPy, Matplotlib, Next.js, React, Plotly.js) kendi
+lisanslarıyla dağıtılır; ayrıntılar için requirements.txt, web/package.json ve ilgili projelerin
 kendi lisans dosyalarına bakınız.
 
 

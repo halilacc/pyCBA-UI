@@ -1,0 +1,13 @@
+# Vercel API dağıtımı bağımlılıkları buradan kurar; requirements.txt yerel kurulum
+# ve CI içindir (uvicorn içerir, Vercel'e gerekmez, .vercelignore ile dışarıda).
+# İki liste aynı tutulmalı.
+[project]
+name = "pycba-api"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = [
+    "pycba==1.0.1",
+    "fastapi>=0.115",
+    "matplotlib>=3.8",
+    "numpy>=1.26",
+]
